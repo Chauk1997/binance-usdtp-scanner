@@ -1,0 +1,35 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Runtime cache
+cache/
+
+# Python generated files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# macOS
+.DS_Store
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
+# Scanner development backups
+main_before_*.py
+main_v2_backup.py
+main_v38_1h_stable.py
+main_v39_v46_LOCKED.py
+main_v44_4h_stable.py
+main_v45_before_clock_opt.py
+main_v46_4h_LOCKED.py
+main_v50_UNIFIED_LOCKED.py
+main_v50_v51_watchlist_LOCKED.py
+main_v52_UNIFIED_WATCHLIST_LOCKED.py
+main_v53_COMPACT_LOCKED.py
+main_v54_CHATGPT_FEED_LOCKED.py
+main_resonance_LOCKED.py
