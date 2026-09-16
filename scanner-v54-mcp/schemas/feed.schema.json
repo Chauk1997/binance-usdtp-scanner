@@ -1,0 +1,960 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string"
+    },
+    "scanner": {
+      "const": "V5.4_CHATGPT_FEED"
+    },
+    "strategy": {
+      "type": "string"
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "elapsed_seconds": {
+      "type": "number"
+    },
+    "source_status": {},
+    "1h": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        },
+        "wait_stop": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        },
+        "wait_pullback": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        },
+        "overextended": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "entry",
+        "wait_stop",
+        "wait_pullback",
+        "overextended"
+      ]
+    },
+    "4h": {
+      "type": "object",
+      "properties": {
+        "entry": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        },
+        "wait_stop": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        },
+        "wait_pullback": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        },
+        "overextended": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string"
+              },
+              "score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "structure": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "daily_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "vs_btc_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resistance_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "stop": {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              "derivatives": {
+                "type": "object",
+                "properties": {
+                  "verdict": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "adjustment": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true,
+            "required": [
+              "symbol",
+              "score"
+            ]
+          }
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "entry",
+        "wait_stop",
+        "wait_pullback",
+        "overextended"
+      ]
+    },
+    "resonance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "structure": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "structure_1h": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "structure_4h": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "daily_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "vs_btc_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "derivative_adjustment": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "stop_1h": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stop_4h": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "grade": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "rv": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "bars_ago": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "required": [
+          "symbol",
+          "score"
+        ]
+      }
+    }
+  },
+  "additionalProperties": true,
+  "required": [
+    "status",
+    "scanner"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "complete"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "generated_at_utc",
+          "strategy",
+          "1h",
+          "4h",
+          "resonance"
+        ],
+        "properties": {
+          "strategy": {
+            "const": "V5.2_LOCKED"
+          }
+        }
+      }
+    }
+  ]
+}
