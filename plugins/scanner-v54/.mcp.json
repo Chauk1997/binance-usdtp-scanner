@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "scanner-v54-mcp": {
+    "scanner_v54_mcp": {
       "type": "http",
       "url": "https://scanner-v54-mcp-production.up.railway.app/mcp"
     }
