@@ -8,7 +8,7 @@
       "name": "scanner-v54",
       "source": {
         "source": "local",
-        "path": "./scanner-v54/plugins/scanner-v54"
+        "path": "./plugins/scanner-v54"
       },
       "policy": {
         "installation": "AVAILABLE",
