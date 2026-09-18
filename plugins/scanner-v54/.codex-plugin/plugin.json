@@ -1,6 +1,6 @@
 {
   "name": "scanner-v54",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Use scanner-v54-mcp to retrieve Binance USDT perpetual scanner data.",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/"
