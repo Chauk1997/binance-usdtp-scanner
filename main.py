@@ -505,7 +505,8 @@ async def cache_init_1d():
             for x in one_d
         ),
         "rate_limited": RATE_LIMITED,
-    }@app.get("/cache/init/4h")
+    }
+    @app.get("/cache/init/4h")
 async def cache_init_4h():
     global RATE_LIMITED
 
