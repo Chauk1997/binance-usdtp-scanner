@@ -1,6 +1,6 @@
 {
   "name": "scanner-v54",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Use scanner-v54-mcp to retrieve Binance USDT perpetual scanner data.",
   "author": {
     "name": "Chauk1997"
@@ -14,6 +14,12 @@
     "longDescription": "Connect to the Scanner V54 MCP server to check availability and retrieve the latest Binance USDT perpetual scanner feed.",
     "developerName": "Chauk1997",
     "category": "Developer Tools",
-    "capabilities": ["Read"]
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Check whether scanner-v54 is online.",
+      "Get the latest scanner feed and report its status."
+    ]
   }
 }

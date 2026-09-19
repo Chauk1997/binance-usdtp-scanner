@@ -2,6 +2,7 @@ import os
 import httpx
 
 from mcp.server.mcpserver import MCPServer
+from mcp.types import ToolAnnotations
 
 mcp = MCPServer(
     name="scanner-v54-mcp",
@@ -11,13 +12,13 @@ mcp = MCPServer(
 SCANNER_BASE_URL = "https://binance-usdtp-scanner-production.up.railway.app"
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))
 def ping() -> str:
     """Check whether the scanner MCP server is online."""
     return "scanner-v54-mcp is online"
 
 
-@mcp.tool()
+@mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
 def get_scan_feed() -> dict:
     """Get the latest V5.4 ChatGPT scanner feed."""
     url = f"{SCANNER_BASE_URL}/scan/feed"
