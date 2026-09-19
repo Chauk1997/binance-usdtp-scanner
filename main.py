@@ -546,6 +546,46 @@ async def cache_init_4h():
         ),
         "rate_limited": RATE_LIMITED,
     }
+    @app.get("/cache/init/1h")
+async def cache_init_1h():
+    global RATE_LIMITED
+
+    RATE_LIMITED = False
+
+    async with httpx.AsyncClient() as client:
+        symbols = read_json(SYMBOL_CACHE)
+
+        if not symbols:
+            symbols = await get_symbols(client)
+
+        one_h = await initialize_interval(
+            client,
+            symbols,
+            "1h",
+        )
+
+    return {
+        "status": (
+            "stopped_rate_limit"
+            if RATE_LIMITED
+            else "complete"
+        ),
+        "total_symbols": len(symbols),
+        "1h_ok": sum(
+            x["status"] == "ok"
+            for x in one_h
+        ),
+        "1h_insufficient": sum(
+            x["status"] == "insufficient_history"
+            for x in one_h
+        ),
+        "1h_failed": sum(
+            x["status"] == "failed"
+            for x in one_h
+        ),
+        "rate_limited": RATE_LIMITED,
+    }
+    
 def load_dataframe(
     symbol,
     interval,
