@@ -55,7 +55,7 @@ def test_publish_restart_and_failures(snapshot):
     with patch("scan_snapshot.Path.replace", side_effect=OSError):
         asyncio.run(snapshot.run(good, "formal"))
     assert snapshot.feed() == original
-    assert json.loads(snapshot.path.read_text()) == original
+    assert json.loads(snapshot.path.read_text())["generated_at_utc"] == original["generated_at_utc"]
     snapshot._feed = {**original, "generated_at_utc": "2000-01-01T00:00:00+00:00"}
     assert snapshot.status()["stale"] is True
 
@@ -119,12 +119,13 @@ def test_corrupt_cache(tmp_path):
 def test_pipeline_once(snapshot):
     formal = {"status": "complete", "elapsed_seconds": 23,
               "1h": {"top10": []}, "4h": {"top10": []}, "resonance": {"results": []}}
-    with patch.object(main, "_scan_run_formal", return_value=formal) as scan, \
+    with patch.object(main, "get_symbols", return_value=[]), \
+         patch.object(main, "_scan_run_formal", return_value=formal) as scan, \
          patch.object(main, "build_watchlist_for_timeframe", return_value={}) as watch:
         with TestClient(main.app) as client:
             assert client.get("/scan/run/all").json() == formal
             feed = client.get("/scan/feed").json()
-            assert feed["status"] == "complete"
+            assert feed["status"] == "stale"
             assert feed["strategy"] == "V5.4_BTC_RESILIENCE"
             assert scan.call_count == 1
             assert watch.call_count == 2

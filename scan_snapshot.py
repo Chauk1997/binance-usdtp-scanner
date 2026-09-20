@@ -6,6 +6,7 @@ import json
 import logging
 from pathlib import Path
 from threading import Lock
+from scan_freshness import freshness
 
 
 def utc_now():
@@ -44,10 +45,11 @@ class ScanSnapshot:
                               datetime.fromisoformat(generated)).total_seconds())
             except (ValueError, TypeError):
                 pass
-        return {**result, "feed_ready": feed is not None,
+        checks = freshness(feed)
+        return {**result, "feed_ready": feed is not None and not checks["stale"],
                 "scan_complete": feed is not None,
                 "generated_at_utc": generated, "age_seconds": age,
-                "stale": age is None or age > 3600,
+                **checks,
                 "cache_mode": "completed_snapshot"}
 
     def feed(self):
@@ -55,13 +57,16 @@ class ScanSnapshot:
         with self._lock:
             feed = self._feed
         if feed is not None:
-            return feed
+            checks = freshness(feed)
+            return {**feed, **checks,
+                    "status": "stale" if checks['stale'] else "complete",
+                    "feed_ready": not checks['stale']}
         status = self.status()
         return {"status": "running" if status["status"] == "running" else "not_ready",
                 "scanner": "V5.4_CHATGPT_FEED", "feed_ready": False,
                 "scan_complete": False, "generated_at_utc": None,
-                "message": "No completed snapshot. Run /scan/run/all explicitly.",
-                "scan_status": status}
+                "message": "No completed snapshot. Scheduled scan is pending or running.",
+                **freshness(None), "scan_status": status}
 
     async def run(self, build, response_key):
         with self._lock:
@@ -83,7 +88,7 @@ class ScanSnapshot:
                                                    "stage": result.get("stage")})
                 return result
             feed = result["feed"]
-            feed = {**feed, "feed_ready": True, "scan_complete": True,
+            feed = {**feed, "generated_at_utc": utc_now(), "feed_ready": True, "scan_complete": True,
                     "cache_mode": "completed_snapshot"}
             # Persist completely before publishing. Failed writes retain old data.
             payload = json.dumps(feed, separators=(",", ":"), allow_nan=False)

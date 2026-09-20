@@ -15,19 +15,39 @@ work. The worker runs outside the HTTP event loop so feed/status requests
 remain responsive. A disconnected caller does not cancel the worker.
 
 Failed/stopped scans and cache-write failures preserve the previous complete
-snapshot. `GET /scan/status` reports the last attempt, readiness, original
-snapshot generation time, age, and `stale` (older than one hour). A stale feed
-is still returned with its original timestamp; fetching it does not refresh it.
-`elapsed_seconds` in the feed measures scan work, not feed request latency.
+snapshot. Every feed/status read recomputes freshness against Asia/Taipei's
+current expected closed 1H and 4H bars. Stale snapshots return `status: stale`,
+`feed_ready: false`, `stale: true`, and explicit reasons, retaining their original
+completion timestamp and rows only as historical results.
 
-Initialize existing candle caches with the existing initialization endpoints
-on a new container, then explicitly call `/scan/run/all`. Schedule that scan
-endpoint externally to refresh results; feed polling no longer refreshes them.
-No new scheduler is installed. Snapshots survive process restarts when the
-cache directory survives. Railway deployments without a persistent volume
-start without candle/feed caches and need initialization again. This targets
-the current single-process, single-replica deployment; multiple workers need
-a shared snapshot store and distributed scan lock.
+The backend lifespan starts one guarded scheduler (single process/replica).
+It catches up on startup, then triggers at each hour's `:00:05`. Missing caches
+bootstrap automatically. Incomplete rounds retry after 30 seconds; rate-limited
+rounds use a 15-minute cooldown, bounded by the next hourly tick. Set
+`SCANNER_SCHEDULER_ENABLED=0` only to disable this scheduler. Multiple workers
+require a distributed scan lock and shared snapshot storage.
+
+Each round freezes its candle cutoff. Indicators and daily-strength inputs use
+only `close_time < cutoff`; no unconditional last-row deletion remains. Each
+symbol must contain the expected closed candle and post-boundary fetch evidence
+(the next open candle in the raw cache). Raw caches may retain a forming candle;
+it never enters technical calculations. After long downtime a full 250-bar fetch
+repairs history. Existing short-history technical gates remain in force.
+
+The feed exposes millisecond Unix timestamps `latest_closed_1h_open_time`,
+`latest_closed_1h_close_time`, `latest_closed_4h_open_time`, and
+`latest_closed_4h_close_time`, plus `fresh_for_1h`, `fresh_for_4h`, expected bars,
+coverage, and timezone. Evidence comes from actual cached candles and all-symbol
+coverage, not the generation timestamp. Publishing atomically replaces
+`completed_snapshot` and stamps `generated_at_utc` at completion.
+
+Recommended reader schedule: hourly at `:02` Asia/Taipei. At 22:02 the required
+1H candle is 21:00–21:59:59.999; at 20:02 the required 4H candle is
+16:00–19:59:59.999. Consumers must check the relevant freshness flags and withhold
+formal rankings while stale. Bootstrap, slow scans, or upstream failures can
+exceed two minutes; timestamps are never advanced to conceal that delay.
+At 08:00 Taiwan (UTC daily reset), daily strength uses the last completed UTC
+session until the first new-session 1H candle closes, avoiding forming prices.
 
 Tests: `python -m pytest -q test_scan_snapshot.py` (FastAPI, pandas, httpx, pytest).
 
@@ -67,7 +87,7 @@ resonance scoring are outside this change; this is not a rewrite of all
 strategy rules discussed in the referenced conversation.
 
 Run `python -m pytest -q test_btc_resilience.py test_scan_snapshot.py`.
-After deployment, explicitly run `/scan/run/all`, then inspect `/scan/feed`:
+After deployment, wait for the automatic startup scan, then inspect `/scan/feed`:
 strategy must be `V5.4_BTC_RESILIENCE`; candle timestamps must match within
 each row; 1H and 4H must use their respective periods; ranking_key must be
 non-increasing within each list. Old persisted snapshots retain the old

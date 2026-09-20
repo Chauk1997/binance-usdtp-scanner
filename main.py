@@ -1,6 +1,9 @@
 import asyncio
 import json
 import time
+import os
+import logging
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,8 +12,23 @@ import pandas as pd
 from fastapi import FastAPI
 from scan_snapshot import ScanSnapshot
 from btc_resilience import rank_items, projection
+from scan_freshness import (SCAN_TIME, scan_now_ms, expected_bar, closed_bars,
+                            latest_closed, seconds_until_scan, DURATIONS)
+
+@asynccontextmanager
+async def lifespan(app):
+    task = None
+    if os.environ.get("SCANNER_SCHEDULER_ENABLED", "1") == "1":
+        task = asyncio.create_task(_scheduled_scans())
+    yield
+    if task:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="Binance USDT.P Scanner",
     version="0.3.0",
 )
@@ -238,15 +256,6 @@ async def download_klines(
             }
 
         raw = result["_data"]
-
-        if len(raw) < 200:
-            return {
-                "symbol": symbol,
-                "interval": interval,
-                "status":
-                    "insufficient_history",
-                "bars": len(raw),
-            }
 
         # 只保存我們後續真正會使用的欄位
         cleaned = []
@@ -602,6 +611,9 @@ def load_dataframe(
     if not data:
         return None
 
+    data = closed_bars(data)
+    if not data:
+        return None
     df = pd.DataFrame(data)
 
     numeric = [
@@ -684,7 +696,7 @@ def analyze_1h_ma_structure(df):
     """
 
     # 使用最後一根已收盤K
-    closed = df.iloc[:-1]
+    closed = df
 
     if len(closed) < 200:
         return {
@@ -803,7 +815,7 @@ def analyze_4h_hard_veto(df):
     盤整/糾結/壓縮不硬排除。
     """
 
-    closed = df.iloc[:-1]
+    closed = df
 
     if len(closed) < 200:
         return {
@@ -876,7 +888,7 @@ def find_key_candles(
     搜尋最近48根已收盤K。
     """
 
-    closed = df.iloc[:-1].copy()
+    closed = df.copy()
 
     if len(closed) < 50:
         return {
@@ -1278,7 +1290,7 @@ def analyze_entry_structure(
     - 是否過度延伸
     """
 
-    closed = df.iloc[:-1].copy()
+    closed = df.copy()
 
     if len(closed) < 50:
         return {
@@ -1961,7 +1973,7 @@ def analyze_current_entry(
     df,
     key_result,
 ):
-    closed = df.iloc[:-1].copy()
+    closed = df.copy()
 
     latest_key = key_result.get("latest")
 
@@ -5111,23 +5123,8 @@ async def update_one_kline_cache(
         path
     )
 
-    if (
-        not isinstance(old_bars, list)
-        or len(old_bars) < 200
-    ):
-        return {
-            "symbol": symbol,
-            "interval": interval,
-            "status":
-                "cache_missing_or_insufficient",
-            "old_bars":
-                len(old_bars)
-                if isinstance(
-                    old_bars,
-                    list,
-                )
-                else 0,
-        }
+    if not isinstance(old_bars, list) or not old_bars:
+        return await download_klines(client, symbol, interval, semaphore)
 
     async with semaphore:
 
@@ -5137,8 +5134,9 @@ async def update_one_kline_cache(
             params={
                 "symbol": symbol,
                 "interval": interval,
-                "limit":
-                    INCREMENTAL_KLINE_LIMIT,
+                "limit": (KLINE_LIMIT if scan_now_ms() - int(old_bars[-1]["open_time"]) >
+                              INCREMENTAL_KLINE_LIMIT * DURATIONS[interval]
+                              else INCREMENTAL_KLINE_LIMIT),
             },
         )
 
@@ -5571,82 +5569,21 @@ def cache_latest_open_time(
         return None
 
 
-def current_interval_open_ms(
-    interval,
-):
-    """
-    Current UTC candle open time.
-    """
-
-    now = datetime.now(
-        timezone.utc
-    )
-
-    if interval == "1h":
-
-        current = now.replace(
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-
-    elif interval == "4h":
-
-        hour = (
-            now.hour // 4
-        ) * 4
-
-        current = now.replace(
-            hour=hour,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-
-    elif interval == "1d":
-
-        current = now.replace(
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-
-    else:
-        raise ValueError(
-            "unsupported interval"
-        )
-
-    return int(
-        current.timestamp()
-        * 1000
-    )
+def current_interval_open_ms(interval):
+    return expected_bar(interval)['close_time'] + 1
 
 
-def interval_cache_is_current(
-    interval,
-):
-    """
-    BTC is used as the cache clock reference.
-    """
-
-    cached = (
-        cache_latest_open_time(
-            "BTCUSDT",
-            interval,
-        )
-    )
-
-    expected = (
-        current_interval_open_ms(
-            interval
-        )
-    )
-
-    return (
-        cached is not None
-        and cached >= expected
-    )
+def interval_cache_is_current(interval):
+    # Every symbol must have been fetched after the current boundary, and
+    # contain the required closed bar. BTC alone cannot prove market coverage.
+    symbols = read_json(SYMBOL_CACHE) or []
+    expected = expected_bar(interval)
+    for symbol in symbols:
+        bars = read_json(cache_file(symbol, interval)) or []
+        if (not bars or int(bars[-1]['open_time']) < expected['close_time'] + 1
+                or latest_closed(bars, interval) != expected):
+            return False
+    return bool(symbols)
 
 
 async def run_incremental_update(
@@ -5728,7 +5665,7 @@ async def build_daily_strength_cache():
         }
 
     day_start = (
-        utc_day_start_ms()
+        (expected_bar('1h')['open_time'] // 86400000) * 86400000
     )
 
     all_today = {}
@@ -5757,7 +5694,7 @@ async def build_daily_strength_cache():
             * 1000
         )
 
-        for bar in bars:
+        for bar in closed_bars(bars):
 
             try:
 
@@ -6222,7 +6159,7 @@ def build_v36_results():
             },
         })
 
-    rank_items(results, "1h", lambda symbol, interval: read_json(cache_file(symbol, interval)), time.time() * 1000)
+    rank_items(results, "1h", lambda symbol, interval: read_json(cache_file(symbol, interval)), scan_now_ms())
 
     return results[:10]
 
@@ -6803,7 +6740,7 @@ def analyze_4h_ma_structure(df):
                 "insufficient_4h_data",
         }
 
-    closed = df.iloc[:-1].copy()
+    closed = df.copy()
 
     if len(closed) < 55:
 
@@ -7033,7 +6970,7 @@ def analyze_1d_hard_veto(df):
                 "insufficient_1d_data",
         }
 
-    closed = df.iloc[:-1].copy()
+    closed = df.copy()
 
     if len(closed) < 55:
 
@@ -9421,7 +9358,7 @@ def build_4h_final_results():
             },
         })
 
-    rank_items(results, "4h", lambda symbol, interval: read_json(cache_file(symbol, interval)), time.time() * 1000)
+    rank_items(results, "4h", lambda symbol, interval: read_json(cache_file(symbol, interval)), scan_now_ms())
 
     return results[:10]
 
@@ -11014,6 +10951,13 @@ async def _scan_run_formal():
                     pipeline,
             }
 
+    # A cached forming bar can acquire an expired close_time without ever
+    # being downloaded again. Require post-boundary cache evidence as well.
+    incomplete = [tf for tf in ('1h', '4h', '1d') if not interval_cache_is_current(tf)]
+    if incomplete:
+        return {'status': 'stopped', 'stage': 'closed_candle_coverage',
+                'incomplete_intervals': incomplete, 'pipeline': pipeline}
+
     # =====================================================
     # STEP 4
     # Taiwan 08:00 daily strength
@@ -11527,7 +11471,7 @@ def build_watchlist_for_timeframe(
         overextended,
     ):
 
-        rank_items(group, timeframe, lambda symbol, interval: read_json(cache_file(symbol, interval)), time.time() * 1000)
+        rank_items(group, timeframe, lambda symbol, interval: read_json(cache_file(symbol, interval)), scan_now_ms())
 
     return {
         "timeframe":
@@ -12534,20 +12478,58 @@ def build_scan_feed(data):
 
 
 
-# Completed snapshots are published only by explicit scan entry points.
+# Scheduled and explicit scans share one guarded completed-snapshot worker.
 # A dedicated worker keeps synchronous pandas/file work off the ASGI loop.
 scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json")
 
 
 async def _build_complete_snapshot():
-    formal = await _scan_run_formal()
-    if formal.get("status") != "complete":
-        return formal
-    full = build_v52_scan(formal)
-    compact = build_compact_scan(full)
-    feed = build_scan_feed(compact)
-    return {"status": "complete", "formal": formal, "v52": full,
-            "compact": compact, "feed": feed}
+    global RATE_LIMITED
+    token = SCAN_TIME.set(int(time.time() * 1000))
+    try:
+        RATE_LIMITED = False
+        async with httpx.AsyncClient() as client:
+            await get_symbols(client)
+        formal = await _scan_run_formal()
+        if formal.get("status") != "complete":
+            return formal
+        full = build_v52_scan(formal)
+        compact = build_compact_scan(full)
+        feed = build_scan_feed(compact)
+        feed['coverage'] = {}
+        symbols = read_json(SYMBOL_CACHE) or []
+        for tf in ('1h', '4h'):
+            actual = latest_closed(read_json(cache_file('BTCUSDT', tf)), tf)
+            missing = [symbol for symbol in symbols
+                       if latest_closed(read_json(cache_file(symbol, tf)), tf) != expected_bar(tf)]
+            feed['coverage'][tf] = {'complete': interval_cache_is_current(tf) and not missing,
+                                    'symbols': len(symbols), 'missing': missing}
+            for key in ('open_time', 'close_time'):
+                feed[f'latest_closed_{tf}_{key}'] = (actual or {}).get(key)
+        feed['scan_started_at_utc'] = datetime.fromtimestamp(scan_now_ms()/1000, timezone.utc).isoformat()
+        feed['freshness_version'] = 'closed-bars-v1'
+        return {"status": "complete", "formal": formal, "v52": full,
+                "compact": compact, "feed": feed}
+    finally:
+        SCAN_TIME.reset(token)
+
+
+async def _scheduled_scans():
+    # Bootstrap/catch up after restarts, then start every hour at :00:05.
+    while True:
+        now = datetime.now(timezone.utc)
+        if now.minute == 0 and now.second < 5:
+            await asyncio.sleep(seconds_until_scan(now))
+        try:
+            await scan_snapshot.run(_build_complete_snapshot, "formal")
+        except Exception:
+            logging.exception("Scheduled scan failed")
+        # Retry incomplete or failed rounds; honor a conservative rate-limit
+        # cooldown. Sleep never skips the next hourly boundary.
+        delay = seconds_until_scan()
+        if scan_snapshot.feed().get('stale', True):
+            delay = min(delay, 900 if RATE_LIMITED else 30)
+        await asyncio.sleep(delay)
 
 
 @app.get("/scan/run/all")
