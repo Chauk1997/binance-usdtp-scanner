@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 import pandas as pd
 from fastapi import FastAPI
+from scan_snapshot import ScanSnapshot
 
 app = FastAPI(
     title="Binance USDT.P Scanner",
@@ -10880,8 +10881,7 @@ async def update_unified_candidate_derivatives(
     }
 
 
-@app.get("/scan/run/all")
-async def scan_run_all():
+async def _scan_run_formal():
 
     global RATE_LIMITED
 
@@ -11654,8 +11654,7 @@ async def scan_watchlist():
 # =========================================================
 
 
-@app.get("/scan/run/all/v52")
-async def scan_run_all_v52():
+def build_v52_scan(formal):
 
     started = datetime.now(
         timezone.utc
@@ -11676,7 +11675,6 @@ async def scan_run_all_v52():
     # - resonance
     # =====================================================
 
-    formal = await scan_run_all()
 
     if (
         formal.get("status")
@@ -11827,7 +11825,7 @@ async def scan_run_all_v52():
     elapsed = (
         finished
         - started
-    ).total_seconds()
+    ).total_seconds() + (formal.get("elapsed_seconds") or 0)
 
     # =====================================================
     # FINAL
@@ -12210,20 +12208,17 @@ def compact_resonance_item(item):
     }
 
 
-@app.get("/scan/run/compact")
-async def scan_run_compact():
+def build_compact_scan(full):
     """
     V5.3 compact output.
 
-    Executes LOCKED V5.2 and only transforms
-    the outgoing response.
+    Transforms an already completed LOCKED V5.2 response.
 
     No strategy changes.
     No ranking changes.
     No extra Binance requests beyond V5.2.
     """
 
-    full = await scan_run_all_v52()
 
     if full.get("status") != "complete":
         return {
@@ -12448,19 +12443,16 @@ def v54_resonance_item(x):
     }
 
 
-@app.get("/scan/feed")
-async def scan_feed():
+def build_scan_feed(data):
     """
     V5.4 ChatGPT feed.
 
-    Runs V5.3 / V5.2 locked scanner and removes
-    fields not needed for normal scan presentation.
+    Projects an already completed V5.3 result for normal scan presentation.
 
     Strategy unchanged.
     Ranking unchanged.
     """
 
-    data = await scan_run_compact()
 
     if data.get("status") != "complete":
         return {
@@ -12547,3 +12539,44 @@ async def scan_feed():
         ],
     }
 
+
+
+# Completed snapshots are published only by explicit scan entry points.
+# A dedicated worker keeps synchronous pandas/file work off the ASGI loop.
+scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json")
+
+
+async def _build_complete_snapshot():
+    formal = await _scan_run_formal()
+    if formal.get("status") != "complete":
+        return formal
+    full = build_v52_scan(formal)
+    compact = build_compact_scan(full)
+    feed = build_scan_feed(compact)
+    return {"status": "complete", "formal": formal, "v52": full,
+            "compact": compact, "feed": feed}
+
+
+@app.get("/scan/run/all")
+async def scan_run_all():
+    return await scan_snapshot.run(_build_complete_snapshot, "formal")
+
+
+@app.get("/scan/run/all/v52")
+async def scan_run_all_v52():
+    return await scan_snapshot.run(_build_complete_snapshot, "v52")
+
+
+@app.get("/scan/run/compact")
+async def scan_run_compact():
+    return await scan_snapshot.run(_build_complete_snapshot, "compact")
+
+
+@app.get("/scan/feed")
+async def scan_feed():
+    return scan_snapshot.feed()
+
+
+@app.get("/scan/status")
+async def scan_status():
+    return scan_snapshot.status()
