@@ -102,3 +102,8 @@ copied for callers and discarded after each round, so no result crosses the
 closed-bar cutoff. Candidate derivatives retain the existing two-request
 semaphore; per-symbol pacing is 50 ms rather than 500 ms. Response weight
 throttling and Retry-After handling remain authoritative.
+
+Partial candle coverage retries after five seconds and only requests symbols
+whose cache is still behind. Current symbols are removed before batch pacing,
+so a one-symbol retry does not sleep through the whole market. Status errors
+include the incomplete intervals and missing symbols for diagnosis.

@@ -170,3 +170,19 @@ def test_per_scan_cache_isolated_and_copies_mutable_results():
         finally:
             SCAN_CACHE.reset(token)
     assert calls == ['ALT','ALT']
+
+
+def test_partial_retry_only_requests_missing_symbols(monkeypatch):
+    calls=[];waits=[]
+    monkeypatch.setattr(main, 'RATE_LIMITED', False)
+    monkeypatch.setattr(main, 'symbol_cache_is_current', lambda symbol,tf: symbol != 'late')
+    async def update(client,symbol,tf,semaphore):
+        calls.append(symbol)
+        return {'status':'ok','symbol':symbol}
+    async def sleep(seconds):
+        waits.append(seconds)
+    monkeypatch.setattr(main,'update_one_kline_cache',update)
+    monkeypatch.setattr(main.asyncio,'sleep',sleep)
+    result=asyncio.run(main.update_interval_incremental(None,[str(i) for i in range(520)]+['late'],'1h'))
+    assert calls == ['late'] and len(result)==1
+    assert len(waits)==1  # No 26 idle batch sleeps on already-current symbols.

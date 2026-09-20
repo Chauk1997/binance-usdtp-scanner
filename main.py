@@ -5277,6 +5277,10 @@ async def update_interval_incremental(
 ):
     global RATE_LIMITED
 
+    # Avoid sleeping once per already-current batch during a partial retry.
+    symbols = [symbol for symbol in symbols
+               if not symbol_cache_is_current(symbol, interval)]
+
     semaphore = asyncio.Semaphore(
         UPDATE_CONCURRENCY
     )
@@ -5601,17 +5605,20 @@ def current_interval_open_ms(interval):
     return expected_bar(interval)['close_time'] + 1
 
 
-def interval_cache_is_current(interval):
-    # Every symbol must have been fetched after the current boundary, and
-    # contain the required closed bar. BTC alone cannot prove market coverage.
-    symbols = read_json(SYMBOL_CACHE) or []
+def symbol_cache_is_current(symbol, interval):
     expected = expected_bar(interval)
-    for symbol in symbols:
-        bars = read_json(cache_file(symbol, interval)) or []
-        if (not bars or int(bars[-1]['open_time']) < expected['close_time'] + 1
-                or latest_closed(bars, interval) != expected):
-            return False
-    return bool(symbols)
+    bars = read_json(cache_file(symbol, interval)) or []
+    return bool(bars and int(bars[-1]['open_time']) >= expected['close_time'] + 1
+                and latest_closed(bars, interval) == expected)
+
+
+def missing_cache_symbols(interval):
+    return [symbol for symbol in (read_json(SYMBOL_CACHE) or [])
+            if not symbol_cache_is_current(symbol, interval)]
+
+
+def interval_cache_is_current(interval):
+    return bool(read_json(SYMBOL_CACHE)) and not missing_cache_symbols(interval)
 
 
 async def run_incremental_update(
@@ -10986,7 +10993,9 @@ async def _scan_run_formal():
     incomplete = [tf for tf in ('1h', '4h', '1d') if not interval_cache_is_current(tf)]
     if incomplete:
         return {'status': 'stopped', 'stage': 'closed_candle_coverage',
-                'incomplete_intervals': incomplete, 'pipeline': pipeline}
+                'incomplete_intervals': incomplete,
+                'missing_symbols': {tf: missing_cache_symbols(tf) for tf in incomplete},
+                'pipeline': pipeline}
 
     # =====================================================
     # STEP 4
@@ -12560,7 +12569,9 @@ async def _scheduled_scans():
         # cooldown. An upstream Retry-After takes precedence over hourly timing.
         delay = seconds_until_scan()
         if scan_snapshot.feed().get('stale', True):
-            delay = max(1, BINANCE_RETRY_AT - time.time()) if RATE_LIMITED else min(delay, 30)
+            last_error = scan_snapshot.status().get('last_error') or {}
+            retry_delay = 5 if last_error.get('stage') == 'closed_candle_coverage' else 30
+            delay = max(1, BINANCE_RETRY_AT - time.time()) if RATE_LIMITED else min(delay, retry_delay)
         await asyncio.sleep(delay)
 
 

@@ -85,7 +85,9 @@ class ScanSnapshot:
                 with self._lock:
                     self._state.update(status="stopped", finished_at_utc=utc_now(),
                                        last_error={"status": result.get("status"),
-                                                   "stage": result.get("stage")})
+                                                   "stage": result.get("stage"),
+                                                   "incomplete_intervals": result.get("incomplete_intervals"),
+                                                   "missing_symbols": result.get("missing_symbols")})
                 return result
             feed = result["feed"]
             feed = {**feed, "generated_at_utc": utc_now(), "feed_ready": True, "scan_complete": True,
