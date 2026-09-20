@@ -54,6 +54,8 @@ SYMBOL_CACHE_SECONDS = 6 * 60 * 60
 
 # 418 / 429 時停止整輪初始化
 RATE_LIMITED = False
+BINANCE_RETRY_AT = 0.0
+BINANCE_THROTTLE_UNTIL = 0.0
 
 
 EXCLUDED_SYMBOLS = {
@@ -120,13 +122,20 @@ async def safe_get(
     url,
     params=None,
 ):
-    global RATE_LIMITED
+    global RATE_LIMITED, BINANCE_RETRY_AT, BINANCE_THROTTLE_UNTIL
 
+    if time.time() < BINANCE_RETRY_AT:
+        RATE_LIMITED = True
     if RATE_LIMITED:
         return {
             "_error": "scanner_rate_limited"
         }
 
+    delay = BINANCE_THROTTLE_UNTIL - time.time()
+    if delay > 0:
+        await asyncio.sleep(delay)
+    if RATE_LIMITED or time.time() < BINANCE_RETRY_AT:
+        return {'_error': 'scanner_rate_limited'}
     try:
         r = await client.get(
             url,
@@ -141,6 +150,13 @@ async def safe_get(
                 "retry-after"
             )
 
+            try:
+                cooldown = max(1, float(retry_after))
+            except (TypeError, ValueError):
+                cooldown = 900
+            BINANCE_RETRY_AT = max(BINANCE_RETRY_AT, time.time() + cooldown + 1)
+            logging.warning("Binance rate limited: status=%s retry_after=%s retry_at=%s",
+                            r.status_code, retry_after, BINANCE_RETRY_AT)
             return {
                 "_error": "binance_rate_limit",
                 "status_code": r.status_code,
@@ -148,6 +164,10 @@ async def safe_get(
             }
 
         r.raise_for_status()
+        # Leave headroom for other users of the same egress IP and derivatives.
+        used = int(r.headers.get('x-mbx-used-weight-1m', '0'))
+        if used >= 800:
+            BINANCE_THROTTLE_UNTIL = (int(time.time()) // 60 + 1) * 60 + 1
 
         return {
             "_data": r.json(),
@@ -5122,6 +5142,12 @@ async def update_one_kline_cache(
     old_bars = read_json(
         path
     )
+
+    expected = expected_bar(interval)
+    if (old_bars and int(old_bars[-1]['open_time']) >= expected['close_time'] + 1
+            and latest_closed(old_bars, interval) == expected):
+        return {'symbol': symbol, 'interval': interval, 'status': 'ok',
+                'skipped_current': True}
 
     if not isinstance(old_bars, list) or not old_bars:
         return await download_klines(client, symbol, interval, semaphore)
@@ -12528,7 +12554,7 @@ async def _scheduled_scans():
         # cooldown. Sleep never skips the next hourly boundary.
         delay = seconds_until_scan()
         if scan_snapshot.feed().get('stale', True):
-            delay = min(delay, 900 if RATE_LIMITED else 30)
+            delay = max(1, BINANCE_RETRY_AT - time.time()) if RATE_LIMITED else min(delay, 30)
         await asyncio.sleep(delay)
 
 
@@ -12554,4 +12580,7 @@ async def scan_feed():
 
 @app.get("/scan/status")
 async def scan_status():
-    return scan_snapshot.status()
+    return {**scan_snapshot.status(),
+            'scheduler_enabled': os.environ.get('SCANNER_SCHEDULER_ENABLED', '1') == '1',
+            'next_hourly_scan_in_seconds': seconds_until_scan(),
+            'binance_retry_at_utc': datetime.fromtimestamp(BINANCE_RETRY_AT, timezone.utc).isoformat() if BINANCE_RETRY_AT > time.time() else None}

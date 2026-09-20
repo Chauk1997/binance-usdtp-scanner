@@ -23,7 +23,9 @@ completion timestamp and rows only as historical results.
 The backend lifespan starts one guarded scheduler (single process/replica).
 It catches up on startup, then triggers at each hour's `:00:05`. Missing caches
 bootstrap automatically. Incomplete rounds retry after 30 seconds; rate-limited
-rounds use a 15-minute cooldown, bounded by the next hourly tick. Set
+rounds honor Retry-After (15 minutes if missing). Successful response weight
+headers trigger proactive minute-boundary throttling at 800 used weight.
+Already current symbols are skipped during recovery. Set
 `SCANNER_SCHEDULER_ENABLED=0` only to disable this scheduler. Multiple workers
 require a distributed scan lock and shared snapshot storage.
 

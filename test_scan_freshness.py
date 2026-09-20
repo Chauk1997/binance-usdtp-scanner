@@ -133,3 +133,22 @@ def test_scheduler_bootstrap_and_next_hour(monkeypatch):
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(main._scheduled_scans())
     assert events == ['scan',123]
+
+
+def test_rate_limit_honors_retry_after(monkeypatch):
+    import httpx
+    monkeypatch.setattr(main.time, 'time', lambda: 1000)
+    monkeypatch.setattr(main, 'RATE_LIMITED', False)
+    monkeypatch.setattr(main, 'BINANCE_RETRY_AT', 0)
+    monkeypatch.setattr(main, 'BINANCE_THROTTLE_UNTIL', 0)
+    calls = []
+    class Client:
+        async def get(self, *args, **kwargs):
+            calls.append(1)
+            return httpx.Response(429, headers={'retry-after':'120'})
+    first = asyncio.run(main.safe_get(Client(), 'https://example.test'))
+    assert first['status_code'] == 429
+    assert main.BINANCE_RETRY_AT == 1121
+    main.RATE_LIMITED = False  # Pipeline reset cannot bypass upstream cooldown.
+    assert asyncio.run(main.safe_get(Client(), 'https://example.test'))['_error'] == 'scanner_rate_limited'
+    assert len(calls) == 1
