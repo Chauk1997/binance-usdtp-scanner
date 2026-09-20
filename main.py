@@ -8,6 +8,7 @@ import httpx
 import pandas as pd
 from fastapi import FastAPI
 from scan_snapshot import ScanSnapshot
+from btc_resilience import rank_items, projection
 
 app = FastAPI(
     title="Binance USDT.P Scanner",
@@ -6221,11 +6222,7 @@ def build_v36_results():
             },
         })
 
-    results.sort(
-        key=lambda x:
-            x["final_score"],
-        reverse=True,
-    )
+    rank_items(results, "1h", lambda symbol, interval: read_json(cache_file(symbol, interval)), time.time() * 1000)
 
     return results[:10]
 
@@ -9424,13 +9421,8 @@ def build_4h_final_results():
             },
         })
 
-    results.sort(
-        key=lambda x:
-            x["final_score"],
-        reverse=True,
-    )
+    rank_items(results, "4h", lambda symbol, interval: read_json(cache_file(symbol, interval)), time.time() * 1000)
 
-    # Never force-fill Top 10.
     return results[:10]
 
 
@@ -11535,11 +11527,7 @@ def build_watchlist_for_timeframe(
         overextended,
     ):
 
-        group.sort(
-            key=lambda x:
-                x["watch_score"],
-            reverse=True,
-        )
+        rank_items(group, timeframe, lambda symbol, interval: read_json(cache_file(symbol, interval)), time.time() * 1000)
 
     return {
         "timeframe":
@@ -11970,6 +11958,7 @@ def compact_formal_item(item):
     )
 
     return {
+        **projection(item),
         "symbol": item.get("symbol"),
         "status": DISPLAY_ENTRY,
 
@@ -12027,6 +12016,7 @@ def compact_watch_item(item, display_status):
     )
 
     return {
+        **projection(item),
         "symbol": item.get("symbol"),
         "status": display_status,
 
@@ -12362,7 +12352,7 @@ def build_compact_scan(full):
 # ============================================================
 # V5.4 CHATGPT SCAN FEED
 # Compact transport layer for ChatGPT.
-# NO strategy / ranking changes.
+# Preserves candle comparison and explicit ranking keys.
 # ============================================================
 
 def v54_formal_item(x):
@@ -12371,6 +12361,7 @@ def v54_formal_item(x):
     derivatives = x.get("derivatives") or {}
 
     return {
+        **projection(x),
         "symbol": x.get("symbol"),
         "score": x.get("final_score"),
         "structure": x.get("structure_score"),
@@ -12397,6 +12388,7 @@ def v54_watch_item(x):
     stop = x.get("stop") or {}
 
     return {
+        **projection(x),
         "symbol": x.get("symbol"),
         "score": x.get("watch_score"),
         "structure": x.get("structure_score"),
@@ -12449,8 +12441,8 @@ def build_scan_feed(data):
 
     Projects an already completed V5.3 result for normal scan presentation.
 
-    Strategy unchanged.
-    Ranking unchanged.
+    Ranking is computed before Top 10 truncation by the source builders.
+    This projection preserves the candle evidence and ranking key.
     """
 
 
@@ -12478,7 +12470,8 @@ def build_scan_feed(data):
         "elapsed_seconds":
             data.get("elapsed_seconds"),
 
-        "strategy": "V5.2_LOCKED",
+        "strategy": "V5.4_BTC_RESILIENCE",
+        "ranking_policy": ["structure_score", "relative_btc_resilience.score", "auxiliary_score"],
 
         "1h": {
             "entry": [

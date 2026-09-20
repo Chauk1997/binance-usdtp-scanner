@@ -125,7 +125,7 @@ def test_pipeline_once(snapshot):
             assert client.get("/scan/run/all").json() == formal
             feed = client.get("/scan/feed").json()
             assert feed["status"] == "complete"
-            assert feed["strategy"] == "V5.2_LOCKED"
+            assert feed["strategy"] == "V5.4_BTC_RESILIENCE"
             assert scan.call_count == 1
             assert watch.call_count == 2
             client.get("/scan/feed")
