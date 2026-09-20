@@ -3,9 +3,12 @@ from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import time
+from functools import wraps
+from copy import deepcopy
 
 TAIPEI = ZoneInfo('Asia/Taipei')
 SCAN_TIME = ContextVar('scan_time', default=None)
+SCAN_CACHE = ContextVar('scan_cache', default=None)
 DURATIONS = {'1h': 3600000, '4h': 14400000, '1d': 86400000}
 
 
@@ -69,3 +72,17 @@ def seconds_until_scan(now=None):
     if target <= now:
         target += timedelta(hours=1)
     return (target - now).total_seconds()
+
+
+def per_scan_cached(function):
+    """Reuse deterministic technical calculations only within one frozen scan."""
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        cache = SCAN_CACHE.get()
+        if cache is None:
+            return function(*args, **kwargs)
+        key = (function.__name__, args, tuple(sorted(kwargs.items())))
+        if key not in cache:
+            cache[key] = function(*args, **kwargs)
+        return deepcopy(cache[key])
+    return wrapped

@@ -95,3 +95,10 @@ each row; 1H and 4H must use their respective periods; ranking_key must be
 non-increasing within each list. Old persisted snapshots retain the old
 strategy and data until a successful new scan completes. Feed reads remain
 read-only and never recalculate candles.
+
+A per-round cache reuses dataframes and symbol technical classifications across
+candidate discovery, entry, resonance, and watchlist builders. Cached values are
+copied for callers and discarded after each round, so no result crosses the
+closed-bar cutoff. Candidate derivatives retain the existing two-request
+semaphore; per-symbol pacing is 50 ms rather than 500 ms. Response weight
+throttling and Retry-After handling remain authoritative.

@@ -152,3 +152,21 @@ def test_rate_limit_honors_retry_after(monkeypatch):
     main.RATE_LIMITED = False  # Pipeline reset cannot bypass upstream cooldown.
     assert asyncio.run(main.safe_get(Client(), 'https://example.test'))['_error'] == 'scanner_rate_limited'
     assert len(calls) == 1
+
+
+def test_per_scan_cache_isolated_and_copies_mutable_results():
+    from scan_freshness import SCAN_CACHE, per_scan_cached
+    calls=[]
+    @per_scan_cached
+    def calculate(symbol):
+        calls.append(symbol)
+        return {'scores':[1,2]}
+    for _ in range(2):
+        token=SCAN_CACHE.set({})
+        try:
+            first=calculate('ALT')
+            first['scores'].append(99)
+            assert calculate('ALT') == {'scores':[1,2]}
+        finally:
+            SCAN_CACHE.reset(token)
+    assert calls == ['ALT','ALT']

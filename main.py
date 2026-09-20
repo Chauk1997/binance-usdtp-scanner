@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from scan_snapshot import ScanSnapshot
 from btc_resilience import rank_items, projection
 from scan_freshness import (SCAN_TIME, scan_now_ms, expected_bar, closed_bars,
-                            latest_closed, seconds_until_scan, DURATIONS)
+                            latest_closed, seconds_until_scan, DURATIONS, SCAN_CACHE, per_scan_cached)
 
 @asynccontextmanager
 async def lifespan(app):
@@ -617,6 +617,7 @@ async def cache_init_1h():
         "rate_limited": RATE_LIMITED,
     }
     
+@per_scan_cached
 def load_dataframe(
     symbol,
     interval,
@@ -2925,6 +2926,7 @@ def grade_stop_signal(stop):
     }
 
 
+@per_scan_cached
 def scan_one_symbol_v33(symbol):
 
     base = scan_one_symbol_v321(
@@ -7942,6 +7944,7 @@ async def scan_4h_v43_symbol(
 # =========================================================
 
 
+@per_scan_cached
 def scan_one_symbol_4h_v44(
     symbol,
 ):
@@ -8397,6 +8400,7 @@ async def scan_4h_v44_symbol(
 # =========================================================
 
 
+@per_scan_cached
 def scan_one_symbol_4h_v44(
     symbol,
 ):
@@ -10730,7 +10734,7 @@ async def update_unified_candidate_derivatives(
                     })
 
                 await asyncio.sleep(
-                    0.5
+                    0.05
                 )
 
     generated_at = (
@@ -12512,6 +12516,7 @@ scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json")
 async def _build_complete_snapshot():
     global RATE_LIMITED
     token = SCAN_TIME.set(int(time.time() * 1000))
+    cache_token = SCAN_CACHE.set({})
     try:
         RATE_LIMITED = False
         async with httpx.AsyncClient() as client:
@@ -12537,6 +12542,7 @@ async def _build_complete_snapshot():
         return {"status": "complete", "formal": formal, "v52": full,
                 "compact": compact, "feed": feed}
     finally:
+        SCAN_CACHE.reset(cache_token)
         SCAN_TIME.reset(token)
 
 
@@ -12551,7 +12557,7 @@ async def _scheduled_scans():
         except Exception:
             logging.exception("Scheduled scan failed")
         # Retry incomplete or failed rounds; honor a conservative rate-limit
-        # cooldown. Sleep never skips the next hourly boundary.
+        # cooldown. An upstream Retry-After takes precedence over hourly timing.
         delay = seconds_until_scan()
         if scan_snapshot.feed().get('stale', True):
             delay = max(1, BINANCE_RETRY_AT - time.time()) if RATE_LIMITED else min(delay, 30)
