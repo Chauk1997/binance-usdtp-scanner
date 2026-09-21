@@ -194,3 +194,14 @@ not infinite room. OI/CVD confirmation compares signs, not absolute cross-coin
 sizes; CVD remains Binance six-hour taker-flow proxy with timeframe disclosed.
 `ranking_key`, not legacy display `score`, is the ordering authority. Every
 board is sorted before slicing its top ten. MUBARAK is a diagnostic sample only.
+
+## V5.7 1H structure-first ordering
+
+The 1H policy now orders structure quality, high compression/reexpansion,
+ daily background, 4H continuation, Key K/stage, upside space, BTC resilience,
+capital confirmation, and auxiliary evidence (all descending lexicographically).
+The existing 4H hard filter and last-12 closed 1H Key K eligibility run before
+ranking. Scores, freshness, full independent USDT perpetual universes, and
+new-Key-K label-only behavior are unchanged. No symbol-specific slots exist.
+The 4H policy stays V5.6. Feed `strategy_by_timeframe` explicitly records
+`1h=V5.7_1H_STRUCTURE_FIRST` and `4h=V5.6_INTEGRATED_CONTINUATION`.

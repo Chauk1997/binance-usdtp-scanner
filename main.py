@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from scan_snapshot import ScanSnapshot
 from btc_resilience import rank_items as rank_btc_items, projection
 from continuation_quality import continuation_quality, upside_space, capital_confirmation
-from background_quality import background_quality, rank_background, VERSION, POLICY_1H, POLICY_4H
+from background_quality import background_quality, rank_background, VERSION, VERSION_4H, POLICY_1H, POLICY_4H
 from scan_freshness import (SCAN_TIME, scan_now_ms, expected_bar, closed_bars,
                             latest_closed, seconds_until_scan, DURATIONS, SCAN_CACHE, per_scan_cached)
 
@@ -12302,6 +12302,7 @@ def build_scan_feed(data):
             data.get("elapsed_seconds"),
 
         "strategy": VERSION,
+        "strategy_by_timeframe": {"1h": VERSION, "4h": VERSION_4H},
         "ranking_policy": POLICY_1H,
         "ranking_policy_by_timeframe": {"1h": POLICY_1H, "4h": POLICY_4H},
         "qualification_policy": {
