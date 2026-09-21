@@ -58,20 +58,22 @@ def test_key_boundaries_lower_wick_and_no_ema_gate():
 
 def row(symbol, structure, daily, four=3, btc=0, aux=0):
     return dict(symbol=symbol,structure_score=structure,
-                daily_background_quality={'rank':daily},four_hour_background_quality={'rank':four},
+                daily_background_quality={'rank':daily,'quality_rank':daily},
+                four_hour_continuation_quality={'score':four}, daily_continuation_quality={'score':daily},
+                structure_quality={'score':structure},four_hour_background_quality={'rank':four},
                 higher_tf_quality={}, key_structure_quality=1, relative_btc_resilience={'score':btc},
                 auxiliary_score=aux)
 
 
-def test_near_tie_and_primary_background():
+def test_daily_then_continuation_then_structure():
     rows=[row('weak_day',11,1,btc=3,aux=100),row('good_day',10.25,4),
           row('much_weaker_structure',8,4),row('best_4h',5,0,four=4)]
     rank_background(rows,'1h')
-    assert [x['symbol'] for x in rows]==['best_4h','good_day','weak_day','much_weaker_structure']
+    assert [x['symbol'] for x in rows]==['good_day','much_weaker_structure','weak_day','best_4h']
     assert all(rows[i]['ranking_key']>=rows[i+1]['ranking_key'] for i in range(len(rows)-1))
-    # 4H board ignores 1H cohorts/background scores and keeps own structure.
+    # 4H independently uses daily quality and daily continuation.
     rank_background(rows,'4h')
-    assert rows[0]['symbol']=='weak_day'
+    assert rows[0]['symbol']=='good_day'
 
 
 def test_btc_before_aux_and_new_marker_no_bonus():

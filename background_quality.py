@@ -1,16 +1,19 @@
 """Versioned higher-timeframe evidence; all inputs must be closed candles."""
 import math
 
-VERSION = 'V5.5_HIGHER_TF_QUALITY'
-NEAR_TIE = 1.0
-POLICY_1H = ['four_hour_background_quality.rank', 'structure_cohort',
-             'daily_background_quality.rank', 'structure_score',
-             'key_structure_quality', 'relative_btc_resilience.score', 'auxiliary_score']
-POLICY_4H = ['structure_score', 'key_structure_quality',
-             'relative_btc_resilience.score', 'auxiliary_score']
+VERSION = 'V5.6_INTEGRATED_CONTINUATION'
+POLICY_1H = ['daily_background_quality.quality_rank', 'four_hour_continuation_quality.score',
+             'structure_quality.score', 'high_compression_reexpansion_quality.score',
+             'key_structure_quality', 'upside_space.score',
+             'relative_btc_resilience.score', 'capital_confirmation.score', 'auxiliary_score']
+POLICY_4H = ['daily_background_quality.quality_rank', 'daily_continuation_quality.score',
+             'structure_quality.score', 'high_compression_reexpansion_quality.score',
+             'key_structure_quality', 'upside_space.score',
+             'relative_btc_resilience.score', 'capital_confirmation.score', 'auxiliary_score']
 FIELDS = ('auxiliary_evidence', 'daily_background_quality', 'four_hour_background_quality',
-          'higher_tf_quality', 'key_candle', 'structure_stage',
-          'key_structure_quality', 'structure_cohort', 'ranking_policy')
+          'higher_tf_quality', 'key_candle', 'structure_stage', 'key_structure_quality',
+          'ranking_policy', 'daily_continuation_quality', 'four_hour_continuation_quality',
+          'high_compression_reexpansion_quality', 'structure_quality', 'upside_space', 'capital_confirmation')
 
 
 def background_quality(df):
@@ -73,28 +76,17 @@ def background_quality(df):
 
 
 def rank_background(items, timeframe):
-    """Anchored cohorts are transitive; no pairwise approximate comparator."""
-    if timeframe == '1h':
-        for rank in sorted({x['four_hour_background_quality']['rank'] for x in items}, reverse=True):
-            pool = sorted((x for x in items if x['four_hour_background_quality']['rank'] == rank),
-                          key=lambda x: (-x['structure_score'], x['symbol']))
-            anchor, cohort = None, 0
-            for x in pool:
-                if anchor is None or anchor - x['structure_score'] > NEAR_TIE:
-                    anchor = x['structure_score']
-                    cohort -= 1
-                x['structure_cohort'] = cohort
-                x['higher_tf_quality'].update(structure_cohort=cohort, cohort_anchor=anchor,
-                                              near_tie_max_gap=NEAR_TIE)
-                x['ranking_key'] = [rank, cohort, x['daily_background_quality']['rank'],
-                                    x['structure_score'], x['key_structure_quality'],
-                                    x['relative_btc_resilience']['score'] or 0, x['auxiliary_score']]
-                x['ranking_policy'] = POLICY_1H
-    else:
-        for x in items:
-            x['ranking_key'] = [x['structure_score'], x['key_structure_quality'],
-                                x['relative_btc_resilience']['score'] or 0, x['auxiliary_score']]
-            x['ranking_policy'] = POLICY_4H
+    """One uniform lexicographic policy; no cohorts, reserved slots or profiles."""
+    policy = POLICY_1H if timeframe == '1h' else POLICY_4H
+    for item in items:
+        item.pop('structure_cohort', None)
+        item['ranking_policy'] = policy
+        item['ranking_key'] = []
+        for path in policy:
+            value = item
+            for part in path.split('.'):
+                value = value.get(part) if isinstance(value, dict) else None
+            item['ranking_key'].append(float(value) if value is not None else 0)
     items.sort(key=lambda x: x['symbol'])
     items.sort(key=lambda x: x['ranking_key'], reverse=True)
     return items

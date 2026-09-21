@@ -160,3 +160,37 @@ At the 2026-09-21 daily close, IRYS has not completed reversal; ME and SKL have
 positive ordered averages with expanding spread and can pass reversal background.
 1000FLOKI and OPG pass daily background. A separate latest-12 4H Key K gate still
 applies, so passing background does not guarantee inclusion in the entry board.
+
+
+## V5.6 integrated continuation ranking
+
+Qualification gates and independent full-universe scans are unchanged. No symbol
+profiles, reserved slots or ranking cohorts are used. 1H ranking is lexicographic:
+1D background quality → 4H continuation → integrated 1H structure → high
+compression/reexpansion → Key K/stage → upside space → same-bar BTC resilience
+→ OI/CVD confirmation → existing auxiliary (including Funding/position ratios).
+4H uses 1D background and 1D continuation before its own operation structure.
+
+`daily_background_quality.rank` retains the prior classification; `quality_rank`
+is authoritative for ranking, putting bullish divergence and preserved high
+bull consolidation in tier 4. All new evidence and thresholds are exported.
+`structure_quality.score` is raw structure plus continuation adjustment:
+restart +2, healthy high compression +1.5, healthy continuation +1, preserved
+consolidation +0.5, ordinary 0, unconfirmed/low rebound -1, overextended -2.
+These are ranking effects only; existing entry/qualification rules still apply.
+
+Continuation requires a prior three-bar established bull, followed by a
+three-bar consolidation in the upper 35% of the prior 24-bar range, at most
+50% retracement, at most 3 ATR wide, and preserved major MAs. Restart requires
+rising price above EMA15, accelerating EMA15 and expanding bullish MA spread.
+Extension above 3 ATR or 12% over EMA15, or the existing entry overextension
+flag, overrides restart quality. A daily established/preserved consolidation in
+the upper 35% of its 30-bar range also qualifies as high-quality background.
+These transparent initial thresholds are not a profitability backtest.
+
+Upside uses the nearest prior 60-bar local swing high above price, capped at
+10%; no observed overhead swing is explicitly labelled and assigned that cap,
+not infinite room. OI/CVD confirmation compares signs, not absolute cross-coin
+sizes; CVD remains Binance six-hour taker-flow proxy with timeframe disclosed.
+`ranking_key`, not legacy display `score`, is the ordering authority. Every
+board is sorted before slicing its top ten. MUBARAK is a diagnostic sample only.

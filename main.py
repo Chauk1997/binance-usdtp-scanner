@@ -12,6 +12,7 @@ import pandas as pd
 from fastapi import FastAPI
 from scan_snapshot import ScanSnapshot
 from btc_resilience import rank_items as rank_btc_items, projection
+from continuation_quality import continuation_quality, upside_space, capital_confirmation
 from background_quality import background_quality, rank_background, VERSION, POLICY_1H, POLICY_4H
 from scan_freshness import (SCAN_TIME, scan_now_ms, expected_bar, closed_bars,
                             latest_closed, seconds_until_scan, DURATIONS, SCAN_CACHE, per_scan_cached)
@@ -5926,29 +5927,40 @@ def rank_items(items, timeframe, read_bars, now_ms):
     rank_btc_items(items, timeframe, read_bars, now_ms)
     for item in items:
         symbol = item["symbol"]
-        daily = background_quality(load_dataframe(symbol, "1d"))
-        four = background_quality(load_dataframe(symbol, "4h"))
+        daily_df = load_dataframe(symbol, "1d")
+        four_df = load_dataframe(symbol, "4h")
+        daily = background_quality(daily_df)
+        four = background_quality(four_df)
         operation = load_dataframe(symbol, timeframe)
         key = find_key_candles(operation) if operation is not None else {"passed": False}
         entry = analyze_current_entry(operation, key) if key.get("passed") else {}
-        quality = background_quality(operation)
-        # Evaluate the strongest qualifying Key K, never award a recency bonus.
+        # Strongest qualifying Key K push; no recency or symbol bonus.
         key_push = max((max(0, k["ema15_pull_pct"]) for k in key.get("candidates", [])), default=0)
-        compressed = not quality.get("upward_divergence", False)
-        if entry.get("overextended"):
-            stage, stage_score = "overextended", -1
-        elif entry.get("latest_pullback") and not compressed:
-            stage, stage_score = "reexpansion_after_pullback", 2
-        elif compressed:
-            stage, stage_score = "compression", 1
-        else:
-            stage, stage_score = "first_expansion", 0
+        daily_cont = continuation_quality(daily_df)
+        four_cont = continuation_quality(four_df)
+        operation_cont = continuation_quality(operation, entry.get("overextended", False))
+        # Same high-quality tier for an established daily bull and preserved
+        # high consolidation; leave original rank/eligibility and gates intact.
+        daily["quality_rank"] = (4 if daily["state"] == "bullish_divergence" or
+                                 (daily["state"] == "bullish_consolidation" and
+                                  (daily_cont.get("high_compression") or daily_cont.get("high_consolidation")) and
+                                  daily_cont.get("structure_preserved")) else daily["rank"])
+        continuation_adjustment = {6:2.0, 5:1.5, 4:1.0, 3:.5, 2:0, 1:-1.0, 0:-2.0, -1:0}[operation_cont["score"]]
+        raw_structure = float(item.get("structure_score") or 0)
+        item.update(daily_continuation_quality=daily_cont,
+                    four_hour_continuation_quality=four_cont,
+                    high_compression_reexpansion_quality=operation_cont,
+                    structure_quality={"score":raw_structure+continuation_adjustment,
+                                       "raw_structure_score":raw_structure,
+                                       "continuation_adjustment":continuation_adjustment},
+                    upside_space=upside_space(operation),
+                    capital_confirmation=capital_confirmation(item.get("derivatives") or {}, timeframe))
         item.update(daily_background_quality=daily, four_hour_background_quality=four,
                     higher_tf_quality={"primary": "4h" if timeframe == "1h" else "1d",
                                        "four_hour_rank": four["rank"], "daily_rank": daily["rank"]},
                     auxiliary_evidence=item.get("derivatives", {}),
-                    key_candle=key, structure_stage=stage,
-                    key_structure_quality=stage_score + min(key_push, 1) / 10)
+                    key_candle=key, structure_stage=operation_cont["state"],
+                    key_structure_quality=operation_cont["score"] + min(key_push, 1) / 10)
     return rank_background(items, timeframe)
 
 
@@ -12297,7 +12309,7 @@ def build_scan_feed(data):
             "4h": "all USDT perpetuals -> daily bullish divergence / bull consolidation / bottom reversal -> independent 4h structure and last-12 Key K",
             "new_key_candle": "label only; no recency score, upgrade or rank boost",
             "large_bull_body": "body >= preceding 24-bar average absolute body",
-            "daily_near_tie": "within each 4h quality tier, descending structure cohorts anchored at max score, gap <= 1.0; daily quality before exact structure",
+            "continuation_ranking": "uniform integrated ranking; no symbol profiles, reserved slots, cohorts or recency bonus",
         },
 
         "1h": {
@@ -12364,15 +12376,20 @@ def build_scan_feed(data):
 
 
 def quality_diagnostic(symbol):
-    daily = background_quality(load_dataframe(symbol, "1d"))
-    four = background_quality(load_dataframe(symbol, "4h"))
+    daily_df = load_dataframe(symbol, "1d")
+    four_df = load_dataframe(symbol, "4h")
+    daily = background_quality(daily_df)
+    four = background_quality(four_df)
     result = {"symbol": symbol, "daily_background_quality": daily,
-              "four_hour_background_quality": four, "timeframes": {}}
+              "four_hour_background_quality": four,
+              "daily_continuation_quality": continuation_quality(daily_df),
+              "four_hour_continuation_quality": continuation_quality(four_df), "timeframes": {}}
     for tf in ("1h", "4h"):
         df = load_dataframe(symbol, tf)
         key = find_key_candles(df) if df is not None else {"passed": False}
         technical = scan_one_symbol_v33(symbol) if tf == "1h" else scan_one_symbol_4h_v44(symbol)
-        result["timeframes"][tf] = {"key_candle": key, "stage": technical.get("stage"),
+        result["timeframes"][tf] = {"key_candle": key, "continuation_quality": continuation_quality(df),
+                                    "stage": technical.get("stage"),
                                     "status": technical.get("status")}
     return result
 
@@ -12404,7 +12421,7 @@ async def _build_complete_snapshot():
         compact = build_compact_scan(full)
         feed = build_scan_feed(compact)
         feed['validation_samples'] = {symbol: quality_diagnostic(symbol) for symbol in
-                                     ('MEUSDT', 'IRYSUSDT', 'SKLUSDT', '1000FLOKIUSDT', 'OPGUSDT')}
+                                     ('MEUSDT', 'IRYSUSDT', 'SKLUSDT', '1000FLOKIUSDT', 'OPGUSDT', 'MUBARAKUSDT')}
         feed['universe_policy'] = 'independent full Binance USDT perpetual universe for each timeframe'
         feed['coverage'] = {}
         symbols = read_json(SYMBOL_CACHE) or []
