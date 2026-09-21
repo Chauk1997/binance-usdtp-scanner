@@ -72,6 +72,7 @@ def test_real_builders_rank_before_top10(monkeypatch, tf, builder, scan, stage):
             return {'symbols':{s:{'daily_return_pct':1} for s in symbols}}
         return [bar(tf, c=90,h=101,l=89)] if 'BTCUSDT' in str(path) else [bar(tf)]
     monkeypatch.setattr(main, 'read_json', read)
+    monkeypatch.setattr(main, 'load_dataframe', lambda *args: None)
     monkeypatch.setattr(main.time, 'time', lambda: DURATIONS[tf]/1000+.1)
     monkeypatch.setattr(main, scan, lambda s: {'stage':stage,'status':'可進場','v33_structure_score':int(s), 'test_score':int(s)})
     monkeypatch.setattr(main, 'calculate_4h_structure_score', lambda b: b['test_score'])

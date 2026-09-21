@@ -1,11 +1,12 @@
 """Closed operation-candle comparison and lexicographic ranking."""
 import math
+from background_quality import FIELDS as BACKGROUND_FIELDS
 
 DURATIONS = {"1h": 3600000, "4h": 14400000}
 BTC_LOW = 0.20
 COIN_HIGH = 0.80
 FIELDS = ("timeframe", "candle", "btc_candle", "relative_btc_resilience",
-          "ranking_key", "auxiliary_score")
+          "ranking_key", "auxiliary_score") + BACKGROUND_FIELDS
 
 
 def candle_metrics(bar, timeframe, expected_open):

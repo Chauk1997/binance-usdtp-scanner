@@ -107,3 +107,56 @@ Partial candle coverage retries after five seconds and only requests symbols
 whose cache is still behind. Current symbols are removed before batch pacing,
 so a one-symbol retry does not sleep through the whole market. Status errors
 include the incomplete intervals and missing symbols for diagnosis.
+
+## V5.5 fixed higher-timeframe policy (2026-09-21)
+
+The production scanner now evaluates the full Binance USDT perpetual universe
+independently for 1H and 4H. Neither board supplies the other's candidate pool.
+
+* 1H first rejects 4H bearish alignment with declining averages and widening
+  downside spread. Missing background data fails closed. The existing operation
+  structure, pullback/stop and overextension checks remain active.
+* 4H accepts only daily bullish divergence, preserved consolidation after a
+  confirmed bullish regime, or a completed/clearly forming bullish reversal.
+  A later bearish alignment invalidates older bullish history; a low base alone
+  is not sufficient. Symbol names never affect qualification.
+* Background ranks are bullish divergence (4), bullish consolidation (3),
+  bottom reversal (2), unconfirmed/base (1), bearish divergence (0), unavailable
+  (-1). Evidence includes MA values, 5-bar slopes, normalized gaps, timestamps,
+  and the most recent confirmed bull/bear regimes. History is 60 bars, requiring
+  three consecutive regime bars. Divergence compares normalized EMA15–SMA45
+  spread over three bars with EMA15 leading the slow MA. A forming reversal
+  requires all three slopes positive, EMA15 leading and bending upward, and
+  SMA30 at least 99.75% of SMA45. Consolidation requires SMA30 >= 99.5% of
+  SMA45, slow slope >= -0.2%, and close >= 97% of SMA45.
+* Key K uses exactly the latest 12 closed operation bars: positive body at least
+  the preceding 24-bar mean absolute body, upper wick strictly below half the
+  range, volume >= 2.2 times previous volume and strictly above the preceding
+  24-bar mean volume. Lower wick is unrestricted. EMA pull is evaluated after
+  qualification, not an extra Key K gate. The current Key K gets the label
+  `★ 本輪新關鍵K`, with no label/recency ranking bonus.
+* 1H ranking is lexicographic: 4H background rank, structural cohort, daily
+  background rank, exact structure score, Key K/structure stage, same-operation
+  same-time BTC resilience, then derivatives. Cohorts start at the highest
+  remaining structure score and include gaps <= 1.0; this avoids non-transitive
+  pairwise approximate comparisons. Daily quality dominates the exact score
+  within each cohort, while much weaker structures remain in later cohorts.
+* 4H ranking stays independent: its own structure, Key K/stage, same-time 4H BTC,
+  then derivatives. Auxiliary evidence includes OI/changes, three long/short
+  ratios, funding and Binance taker-flow CVD **proxy**, not aggregated CVD.
+  Absolute OI is context, not a cross-symbol size bonus.
+
+`get_scan_feed` / `/scan/feed` now reports `V5.5_HIGHER_TF_QUALITY`, explicit
+per-timeframe ranking policies, all ranked entry `candidates` before Top 10,
+background fields, ranking keys, Key K details, structure stage, auxiliary
+inputs, and `validation_samples` for the five requested examples.
+`/scan/quality/{symbol}` exposes the same qualification diagnostics for any
+cached universe symbol. Snapshot timestamps/freshness behavior is preserved.
+The per-symbol diagnostic uses current cached closed bars; the feed diagnostics
+use the scan's frozen cutoff.
+
+Samples are time-dependent examples, not permanent inclusion/exclusion rules.
+At the 2026-09-21 daily close, IRYS has not completed reversal; ME and SKL have
+positive ordered averages with expanding spread and can pass reversal background.
+1000FLOKI and OPG pass daily background. A separate latest-12 4H Key K gate still
+applies, so passing background does not guarantee inclusion in the entry board.

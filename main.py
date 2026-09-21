@@ -11,7 +11,8 @@ import httpx
 import pandas as pd
 from fastapi import FastAPI
 from scan_snapshot import ScanSnapshot
-from btc_resilience import rank_items, projection
+from btc_resilience import rank_items as rank_btc_items, projection
+from background_quality import background_quality, rank_background, VERSION, POLICY_1H, POLICY_4H
 from scan_freshness import (SCAN_TIME, scan_now_ms, expected_bar, closed_bars,
                             latest_closed, seconds_until_scan, DURATIONS, SCAN_CACHE, per_scan_cached)
 
@@ -825,93 +826,23 @@ def analyze_1h_ma_structure(df):
 
 
 def analyze_4h_hard_veto(df):
-    """
-    1H 操作的高週期 Hard Veto。
-
-    只有 4H 明確：
-    EMA15 < SMA30 < SMA45
-    且三條均線都向下
-    才硬排除。
-
-    盤整/糾結/壓縮不硬排除。
-    """
-
-    closed = df
-
-    if len(closed) < 200:
-        return {
-            "hard_veto": False,
-            "reason": "insufficient_history",
-        }
-
-    last = closed.iloc[-1]
-
-    ema15 = float(last["ema15"])
-    sma30 = float(last["sma30"])
-    sma45 = float(last["sma45"])
-
-    ema_slope = pct_slope(
-        closed["ema15"], 5
-    )
-    sma30_slope = pct_slope(
-        closed["sma30"], 5
-    )
-    sma45_slope = pct_slope(
-        closed["sma45"], 5
-    )
-
-    bearish_order = (
-        ema15 < sma30 < sma45
-    )
-
-    downward = (
-        ema_slope < 0
-        and sma30_slope < 0
-        and sma45_slope < 0
-    )
-
-    hard_veto = (
-        bearish_order
-        and downward
-    )
-
-    return {
-        "hard_veto": hard_veto,
-        "ema15": ema15,
-        "sma30": sma30,
-        "sma45": sma45,
-        "ema15_slope_5": round(
-            ema_slope, 6
-        ),
-        "sma30_slope_5": round(
-            sma30_slope, 6
-        ),
-        "sma45_slope_5": round(
-            sma45_slope, 6
-        ),
-    }
+    quality = background_quality(df)
+    return {**quality, "hard_veto": quality["hard_exclude"]}
 
 
 def find_key_candles(
     df,
-    lookback=48,
+    lookback=12,
 ):
-    """
-    已確認的關鍵K客觀條件：
-
-    1. 成交量 >= 前一根 2.5倍
-    2. 成交量 > 關鍵K之前24根平均量
-    3. 多方K
-    4. 有上影時，實體 >= 整根K的1/2
-    5. 收盤產生向上位移
-    6. EMA15 被往上拉
-
-    搜尋最近48根已收盤K。
+    """Last 12 closed bars: large bullish body, upper wick < half range,
+    volume >= 2.2 * previous and > preceding 24-bar mean. No lower-wick gate.
+    Large body means >= preceding 24-bar mean absolute body.
     """
 
+    lookback = min(12, lookback)
     closed = df.copy()
 
-    if len(closed) < 50:
+    if len(closed) < 25:
         return {
             "passed": False,
             "count": 0,
@@ -923,7 +854,7 @@ def find_key_candles(
 
     last_index = len(closed) - 1
     start = max(
-        25,
+        24,
         last_index - lookback + 1,
     )
 
@@ -961,7 +892,7 @@ def find_key_candles(
 
         volume_vs_prev = v / pv
 
-        if volume_vs_prev < 2.5:
+        if volume_vs_prev < 2.2:
             continue
 
         volume_ma24_before = float(
@@ -986,15 +917,10 @@ def find_key_candles(
             body / candle_range
         )
 
-        # 有上影線時實體至少整體1/2
-        if (
-            upper_wick > 0
-            and body_ratio < 0.5
-        ):
+        if upper_wick >= candle_range * 0.5:
             continue
-
-        # 必須真的向上位移
-        if c <= previous_close:
+        average_body = float((closed["close"] - closed["open"]).abs().iloc[i-24:i].mean())
+        if body < average_body:
             continue
 
         displacement = (
@@ -1008,9 +934,6 @@ def find_key_candles(
         ema_after = float(
             row["ema15"]
         )
-
-        if ema_after <= ema_before:
-            continue
 
         ema_pull = (
             ema_after / ema_before - 1
@@ -1079,6 +1002,8 @@ def find_key_candles(
         "count": len(candidates),
         "latest": latest,
         "candidates": candidates,
+        "new_key_candle": latest["bars_ago"] == 0,
+        "label": "★ 本輪新關鍵K" if latest["bars_ago"] == 0 else None,
     }
 
 
@@ -1151,7 +1076,7 @@ async def local_scan_1h():
 
         key = find_key_candles(
             df1h,
-            lookback=48,
+            lookback=12,
         )
 
         if not key["passed"]:
@@ -1904,7 +1829,7 @@ async def local_scan_1h_v32():
 
         key = find_key_candles(
             df1h,
-            lookback=48,
+            lookback=12,
         )
 
         if not key["passed"]:
@@ -2408,36 +2333,16 @@ def scan_one_symbol_v321(
             "stage": "insufficient_data",
         }
 
-    one_h = (
-        analyze_1h_ma_structure(
-            df1h
-        )
-    )
-
-    if not one_h["passed"]:
-        return {
-            "symbol": symbol,
-            "stage": "step1_reject",
-            "ma_structure": one_h,
-        }
-
-    four_h = (
-        analyze_4h_hard_veto(
-            df4h
-        )
-    )
-
+    four_h = analyze_4h_hard_veto(df4h)
     if four_h["hard_veto"]:
-        return {
-            "symbol": symbol,
-            "stage": "4h_hard_veto",
-            "ma_structure": one_h,
-            "higher_tf": four_h,
-        }
+        return {"symbol": symbol, "stage": "4h_hard_veto", "higher_tf": four_h}
+    one_h = analyze_1h_ma_structure(df1h)
+    if not one_h["passed"]:
+        return {"symbol": symbol, "stage": "step1_reject", "ma_structure": one_h}
 
     key = find_key_candles(
         df1h,
-        lookback=48,
+        lookback=12,
     )
 
     if not key["passed"]:
@@ -4720,6 +4625,15 @@ def interpret_derivatives(
                 "large_traders_long_bias"
             )
 
+    cvd = safe_float(derivative.get("cvd_proxy_6h"))
+    oi_value = safe_float(derivative.get("oi_value"))
+    if cvd is not None:
+        adjustment += 0.10 if cvd > 0 else -0.10 if cvd < 0 else 0
+        flags.append("cvd_proxy_buying" if cvd > 0 else "cvd_proxy_selling" if cvd < 0 else "cvd_proxy_flat")
+    if oi_value is None:
+        flags.append("oi_level_unavailable")
+    # Absolute OI is context, not comparable across differently priced contracts.
+
     # Keep derivatives subordinate.
     adjustment = max(
         -1.0,
@@ -4739,6 +4653,9 @@ def interpret_derivatives(
         verdict = "neutral"
 
     return {
+        "oi_value": oi_value,
+        "cvd_proxy_6h": cvd,
+        "cvd_source": "Binance taker-flow proxy, not aggregated exchange CVD",
         "verdict":
             verdict,
 
@@ -4971,6 +4888,8 @@ async def scan_v36_final():
                 derivative_context,
 
             "derivatives": {
+                "oi_value": derivative.get("oi_value"),
+                "cvd_proxy_6h": derivative.get("cvd_proxy_6h"),
                 "oi_delta_1h_pct":
                     derivative.get(
                         "oi_delta_1h_pct"
@@ -6003,7 +5922,37 @@ async def update_candidate_derivatives(
     }
 
 
-def build_v36_results():
+def rank_items(items, timeframe, read_bars, now_ms):
+    rank_btc_items(items, timeframe, read_bars, now_ms)
+    for item in items:
+        symbol = item["symbol"]
+        daily = background_quality(load_dataframe(symbol, "1d"))
+        four = background_quality(load_dataframe(symbol, "4h"))
+        operation = load_dataframe(symbol, timeframe)
+        key = find_key_candles(operation) if operation is not None else {"passed": False}
+        entry = analyze_current_entry(operation, key) if key.get("passed") else {}
+        quality = background_quality(operation)
+        # Evaluate the strongest qualifying Key K, never award a recency bonus.
+        key_push = max((max(0, k["ema15_pull_pct"]) for k in key.get("candidates", [])), default=0)
+        compressed = not quality.get("upward_divergence", False)
+        if entry.get("overextended"):
+            stage, stage_score = "overextended", -1
+        elif entry.get("latest_pullback") and not compressed:
+            stage, stage_score = "reexpansion_after_pullback", 2
+        elif compressed:
+            stage, stage_score = "compression", 1
+        else:
+            stage, stage_score = "first_expansion", 0
+        item.update(daily_background_quality=daily, four_hour_background_quality=four,
+                    higher_tf_quality={"primary": "4h" if timeframe == "1h" else "1d",
+                                       "four_hour_rank": four["rank"], "daily_rank": daily["rank"]},
+                    auxiliary_evidence=item.get("derivatives", {}),
+                    key_candle=key, structure_stage=stage,
+                    key_structure_quality=stage_score + min(key_push, 1) / 10)
+    return rank_background(items, timeframe)
+
+
+def build_v36_results(limit=10):
     """
     Internal final ranking builder.
     Same priority as V3.6:
@@ -6157,6 +6106,8 @@ def build_v36_results():
                 derivative_context,
 
             "derivatives": {
+                "oi_value": derivative.get("oi_value"),
+                "cvd_proxy_6h": derivative.get("cvd_proxy_6h"),
                 "oi_delta_1h_pct":
                     derivative.get(
                         "oi_delta_1h_pct"
@@ -6196,7 +6147,7 @@ def build_v36_results():
 
     rank_items(results, "1h", lambda symbol, interval: read_json(cache_file(symbol, interval)), scan_now_ms())
 
-    return results[:10]
+    return results if limit is None else results[:limit]
 
 
 @app.get("/scan/run/1h")
@@ -6981,124 +6932,8 @@ def analyze_4h_ma_structure(df):
 
 
 def analyze_1d_hard_veto(df):
-    """
-    4H trades use 1D as higher timeframe.
-
-    Hard veto ONLY when daily timeframe is
-    clearly bearish:
-
-    EMA15 < SMA30 < SMA45
-
-    AND all three averages are declining.
-
-    Neutral / tangled / compressed daily
-    structure does NOT veto a 4H long.
-    """
-
-    if df is None or len(df) < 60:
-
-        return {
-            "veto":
-                True,
-
-            "reason":
-                "insufficient_1d_data",
-        }
-
-    closed = df.copy()
-
-    if len(closed) < 55:
-
-        return {
-            "veto":
-                True,
-
-            "reason":
-                "insufficient_closed_1d",
-        }
-
-    last = closed.iloc[-1]
-
-    ema15 = float(
-        last["ema15"]
-    )
-
-    sma30 = float(
-        last["sma30"]
-    )
-
-    sma45 = float(
-        last["sma45"]
-    )
-
-    ema15_slope = pct_slope(
-        closed["ema15"],
-        5,
-    )
-
-    sma30_slope = pct_slope(
-        closed["sma30"],
-        5,
-    )
-
-    sma45_slope = pct_slope(
-        closed["sma45"],
-        5,
-    )
-
-    bearish_order = (
-        ema15 < sma30 < sma45
-    )
-
-    downward = (
-        ema15_slope < 0
-        and sma30_slope < 0
-        and sma45_slope < 0
-    )
-
-    veto = (
-        bearish_order
-        and downward
-    )
-
-    return {
-        "veto":
-            veto,
-
-        "reason":
-            (
-                "daily_bearish_alignment"
-                if veto
-                else "daily_not_hard_bearish"
-            ),
-
-        "ema15":
-            round(ema15, 10),
-
-        "sma30":
-            round(sma30, 10),
-
-        "sma45":
-            round(sma45, 10),
-
-        "ema15_slope_5":
-            round(
-                ema15_slope,
-                6
-            ),
-
-        "sma30_slope_5":
-            round(
-                sma30_slope,
-                6
-            ),
-
-        "sma45_slope_5":
-            round(
-                sma45_slope,
-                6
-            ),
-    }
+    quality = background_quality(df)
+    return {**quality, "veto": not quality["eligible_4h"], "reason": quality["state"]}
 
 
 def scan_one_symbol_4h_v41(
@@ -7338,7 +7173,7 @@ def scan_one_symbol_4h_v42(
 
     key = find_key_candles(
         df4h,
-        lookback=48,
+        lookback=12,
     )
 
     # find_key_candles in our 1H scanner
@@ -9129,7 +8964,7 @@ async def update_4h_candidate_derivatives(
     }
 
 
-def build_4h_final_results():
+def build_4h_final_results(limit=10):
     """
     Final 4H ranking.
 
@@ -9353,6 +9188,8 @@ def build_4h_final_results():
                 derivative_context,
 
             "derivatives": {
+                "oi_value": derivative.get("oi_value"),
+                "cvd_proxy_6h": derivative.get("cvd_proxy_6h"),
                 "oi_delta_1h_pct":
                     derivative.get(
                         "oi_delta_1h_pct"
@@ -9397,7 +9234,7 @@ def build_4h_final_results():
 
     rank_items(results, "4h", lambda symbol, interval: read_json(cache_file(symbol, interval)), scan_now_ms())
 
-    return results[:10]
+    return results if limit is None else results[:limit]
 
 
 @app.get("/scan/4h/final")
@@ -11112,11 +10949,11 @@ async def _scan_run_formal():
     # =====================================================
 
     results_1h = (
-        build_v36_results()
+        build_v36_results(limit=None)
     )
 
     results_4h = (
-        build_4h_final_results()
+        build_4h_final_results(limit=None)
     )
 
     # =====================================================
@@ -11158,17 +10995,13 @@ async def _scan_run_formal():
         "derivatives_deduplicated":
             True,
 
-        "ranking_priority":
-            (
-                "chart_structure > "
-                "relative_strength > "
-                "derivatives_validation"
-            ),
+        "ranking_priority": {"1h": POLICY_1H, "4h": POLICY_4H},
 
         "pipeline":
             pipeline,
 
         "1h": {
+            "candidates": results_1h,
             "count":
                 len(results_1h),
 
@@ -11177,6 +11010,7 @@ async def _scan_run_formal():
         },
 
         "4h": {
+            "candidates": results_4h,
             "count":
                 len(results_4h),
 
@@ -11820,16 +11654,16 @@ def build_v52_scan(formal):
 
         "strategy": {
             "formal_entry":
-                "V5.0_LOCKED",
+                VERSION,
 
             "watchlist":
-                "V5.1_LOCKED",
+                VERSION,
 
             "strategy_changed":
-                False,
+                True,
 
             "ranking_changed":
-                False,
+                True,
 
             "watchlist_extra_binance_requests":
                 0,
@@ -12266,25 +12100,26 @@ def build_compact_scan(full):
 
         "strategy": {
             "formal":
-                "V5.0_LOCKED",
+                VERSION,
 
             "watchlist":
-                "V5.1_LOCKED",
+                VERSION,
 
             "unified":
-                "V5.2_LOCKED",
+                VERSION,
 
             "compact":
                 "V5.3_DISPLAY_ONLY",
 
             "strategy_changed":
-                False,
+                True,
 
             "ranking_changed":
-                False,
+                True,
         },
 
         "1h": {
+            "candidates": [compact_formal_item(x) for x in formal_1h.get("candidates", [])],
             "entry_label":
                 DISPLAY_ENTRY,
 
@@ -12301,6 +12136,7 @@ def build_compact_scan(full):
         },
 
         "4h": {
+            "candidates": [compact_formal_item(x) for x in formal_4h.get("candidates", [])],
             "entry_label":
                 DISPLAY_ENTRY,
 
@@ -12453,10 +12289,19 @@ def build_scan_feed(data):
         "elapsed_seconds":
             data.get("elapsed_seconds"),
 
-        "strategy": "V5.4_BTC_RESILIENCE",
-        "ranking_policy": ["structure_score", "relative_btc_resilience.score", "auxiliary_score"],
+        "strategy": VERSION,
+        "ranking_policy": POLICY_1H,
+        "ranking_policy_by_timeframe": {"1h": POLICY_1H, "4h": POLICY_4H},
+        "qualification_policy": {
+            "1h": "all USDT perpetuals -> 4h bearish divergence hard exclude -> independent 1h structure and last-12 Key K",
+            "4h": "all USDT perpetuals -> daily bullish divergence / bull consolidation / bottom reversal -> independent 4h structure and last-12 Key K",
+            "new_key_candle": "label only; no recency score, upgrade or rank boost",
+            "large_bull_body": "body >= preceding 24-bar average absolute body",
+            "daily_near_tie": "within each 4h quality tier, descending structure cohorts anchored at max score, gap <= 1.0; daily quality before exact structure",
+        },
 
         "1h": {
+            "candidates": [v54_formal_item(x) for x in one_h.get("candidates", [])],
             "entry": [
                 v54_formal_item(x)
                 for x in (one_h.get("top10") or [])
@@ -12482,6 +12327,7 @@ def build_scan_feed(data):
         },
 
         "4h": {
+            "candidates": [v54_formal_item(x) for x in four_h.get("candidates", [])],
             "entry": [
                 v54_formal_item(x)
                 for x in (four_h.get("top10") or [])
@@ -12517,6 +12363,27 @@ def build_scan_feed(data):
 
 
 
+def quality_diagnostic(symbol):
+    daily = background_quality(load_dataframe(symbol, "1d"))
+    four = background_quality(load_dataframe(symbol, "4h"))
+    result = {"symbol": symbol, "daily_background_quality": daily,
+              "four_hour_background_quality": four, "timeframes": {}}
+    for tf in ("1h", "4h"):
+        df = load_dataframe(symbol, tf)
+        key = find_key_candles(df) if df is not None else {"passed": False}
+        technical = scan_one_symbol_v33(symbol) if tf == "1h" else scan_one_symbol_4h_v44(symbol)
+        result["timeframes"][tf] = {"key_candle": key, "stage": technical.get("stage"),
+                                    "status": technical.get("status")}
+    return result
+
+
+@app.get("/scan/quality/{symbol}")
+async def scan_quality(symbol: str):
+    if symbol not in (read_json(SYMBOL_CACHE) or []):
+        return {"status": "unknown_symbol"}
+    return quality_diagnostic(symbol)
+
+
 # Scheduled and explicit scans share one guarded completed-snapshot worker.
 # A dedicated worker keeps synchronous pandas/file work off the ASGI loop.
 scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json")
@@ -12536,6 +12403,9 @@ async def _build_complete_snapshot():
         full = build_v52_scan(formal)
         compact = build_compact_scan(full)
         feed = build_scan_feed(compact)
+        feed['validation_samples'] = {symbol: quality_diagnostic(symbol) for symbol in
+                                     ('MEUSDT', 'IRYSUSDT', 'SKLUSDT', '1000FLOKIUSDT', 'OPGUSDT')}
+        feed['universe_policy'] = 'independent full Binance USDT perpetual universe for each timeframe'
         feed['coverage'] = {}
         symbols = read_json(SYMBOL_CACHE) or []
         for tf in ('1h', '4h'):
