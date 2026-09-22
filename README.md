@@ -205,3 +205,28 @@ ranking. Scores, freshness, full independent USDT perpetual universes, and
 new-Key-K label-only behavior are unchanged. No symbol-specific slots exist.
 The 4H policy stays V5.6. Feed `strategy_by_timeframe` explicitly records
 `1h=V5.7_1H_STRUCTURE_FIRST` and `4h=V5.6_INTEGRATED_CONTINUATION`.
+
+## Bounded ChatGPT feed
+
+`get_scan_feed()` now returns `scanner-summary-v1`: request-time freshness,
+coverage counts, strategy and ranking policies, independently selected 1H/4H
+`candidates` Top 10, ranking evidence, and the intersection of those two Top 10s.
+Rows are copied in source order without any qualification or ranking changes.
+`candidate_count` describes the full ranked pool; fewer than ten rows is valid.
+The separately named `resonance.top10` retains the legacy resonance order and
+must not be confused with the Top 10 intersection. All rows refer to one snapshot.
+Full snapshots and diagnostics remain available at `/scan/feed`; the new
+`/scan/feed/summary` HTTP endpoint exposes the same compact projection.
+The MCP projection works with the existing backend, so deploy the MCP service
+with `scan_summary.py` even if the backend has not yet been updated.
+
+Reader schedule: preserve hourly `:07` Asia/Taipei. On each run publish 1H only
+when `fresh_for_1h` is true; at 00/04/08/12/16/20 additionally publish 4H only
+when `fresh_for_4h` is true. Publish the intersection only when both are fresh.
+For stale/not-ready/running results report the status and snapshot/bar times;
+never reuse earlier rankings as current or silently omit a failed round.
+Do not re-sort by scalar scores or add post-output qualification rules.
+ChatGPT scheduling and notification settings are separate from Railway's
+scanner scheduler and require their own run-log verification.
+
+Validation: `python -m pytest -q`, including `test_scan_summary.py`.
