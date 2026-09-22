@@ -121,3 +121,11 @@ def test_4h_rank_evidence_exactly_matches_original_v57(monkeypatch):
     monkeypatch.setattr(main,'rank_btc_items',lambda *a:None)
     rows=[row('A',12,4),row('B',3,1),row('C',7,3)]
     assert main.rank_items(rows,'4h',None,0)==baseline
+
+
+def test_missing_capital_does_not_hide_qualified_candidate(monkeypatch):
+    monkeypatch.setattr(main,'read_json',lambda p:['BASE'] if p==main.SYMBOL_CACHE else {})
+    monkeypatch.setattr(main,'qualify_background_first',lambda s:{'stage':'qualified','status':'qualified'})
+    monkeypatch.setattr(main,'rank_items',lambda *a:None)
+    result=main.build_v36_results()
+    assert [r['symbol'] for r in result]==['BASE']

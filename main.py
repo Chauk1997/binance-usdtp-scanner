@@ -5987,7 +5987,7 @@ def rank_items(items, timeframe, read_bars, now_ms):
             stage = background_first.structure_stage(operation, continuation_quality(operation))
             item.update(
                 daily_background_quality=background_first.daily_quality(
-                    daily, daily_cont, four_cont, find_key_candles(four_df, volume_multiplier=2.5)),
+                    daily, daily_cont, four_cont, find_key_candles(four_df, volume_multiplier=2.5) if four_df is not None else {}),
                 structure_quality=background_first.structure_quality(operation),
                 high_compression_reexpansion_quality=stage,
                 structure_stage=stage["state"],
@@ -6014,8 +6014,8 @@ def build_v36_results(limit=10):
         DERIVATIVES_CACHE
     )
 
-    if not daily or not derivatives:
-        return []
+    daily = daily or {}
+    derivatives = derivatives or {}
 
     daily_symbols = daily.get(
         "symbols",
@@ -6063,11 +6063,9 @@ def build_v36_results(limit=10):
             )
         )
 
-        if (
-            not strength
-            or not derivative
-        ):
-            continue
+        # Capital is confirmation, never another qualification gate.
+        strength = strength or {}
+        derivative = derivative or {}
 
         structure_score = float(
             base.get(
@@ -12420,8 +12418,8 @@ def quality_diagnostic(symbol):
               "four_hour_continuation_quality": continuation_quality(four_df), "timeframes": {}}
     for tf in ("1h", "4h"):
         df = load_dataframe(symbol, tf)
-        key = find_key_candles(df) if df is not None else {"passed": False}
-        technical = scan_one_symbol_v33(symbol) if tf == "1h" else scan_one_symbol_4h_v44(symbol)
+        key = find_key_candles(df, volume_multiplier=2.5 if tf == "1h" else 2.2) if df is not None else {"passed": False}
+        technical = qualify_background_first(symbol) if tf == "1h" else scan_one_symbol_4h_v44(symbol)
         result["timeframes"][tf] = {"key_candle": key, "continuation_quality": continuation_quality(df),
                                     "stage": technical.get("stage"),
                                     "status": technical.get("status")}
