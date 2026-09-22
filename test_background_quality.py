@@ -65,11 +65,11 @@ def row(symbol, structure, daily, four=3, btc=0, aux=0):
                 auxiliary_score=aux)
 
 
-def test_1h_structure_first_and_4h_unchanged():
+def test_1h_background_first_and_4h_unchanged():
     rows=[row('weak_day',11,1,btc=3,aux=100),row('good_day',10.25,4),
           row('much_weaker_structure',8,4),row('best_4h',5,0,four=4)]
     rank_background(rows,'1h')
-    assert [x['symbol'] for x in rows]==['weak_day','good_day','much_weaker_structure','best_4h']
+    assert [x['symbol'] for x in rows]==['good_day','much_weaker_structure','weak_day','best_4h']
     assert all(rows[i]['ranking_key']>=rows[i+1]['ranking_key'] for i in range(len(rows)-1))
     # 4H independently uses daily quality and daily continuation.
     rank_background(rows,'4h')
@@ -101,7 +101,7 @@ def test_background_projection_survives_all_layers():
 
 def test_1h_pool_does_not_use_4h_top10(monkeypatch):
     monkeypatch.setattr(main,'read_json',lambda path:['ONLY_1H'])
-    monkeypatch.setattr(main,'scan_one_symbol_v33',lambda s:{'stage':'qualified','status':'可進場'})
+    monkeypatch.setattr(main,'qualify_background_first',lambda s:{'stage':'qualified','status':'qualified'})
     monkeypatch.setattr(main,'get_4h_entry_candidates',lambda:[])
     assert main.get_current_entry_candidates()==['ONLY_1H']
 
