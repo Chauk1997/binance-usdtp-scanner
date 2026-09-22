@@ -2,7 +2,7 @@
 from copy import deepcopy
 
 METADATA = '''status scanner generated_at_utc elapsed_seconds strategy strategy_by_timeframe
-ranking_policy ranking_policy_by_timeframe universe_policy latest_closed_1h_open_time
+ranking_policy ranking_policy_by_timeframe qualification_policy universe_policy latest_closed_1h_open_time
 latest_closed_1h_close_time latest_closed_4h_open_time latest_closed_4h_close_time
 scan_started_at_utc freshness_version feed_ready scan_complete cache_mode
 freshness_timezone stale_reasons expected_closed_1h expected_closed_4h
@@ -49,7 +49,7 @@ def compact_scan_feed(feed):
         rows = board.get('candidates', board.get('entry', []))
         result[tf] = {'candidate_count': len(rows) if 'candidates' in board else None,
                       'source': 'candidates' if 'candidates' in board else 'entry',
-                      'candidates': [summary_row(row, i + 1) for i, row in enumerate(rows[:10])],
+                      'candidates': [summary_row(row, i + 1) for i, row in enumerate(rows[:10])] if feed.get('fresh_for_' + tf) else [],
                       'fresh': feed.get('fresh_for_' + tf, False)}
     four = {row['symbol']: row['rank'] for row in result['4h']['candidates']}
     result['intersection'] = {
@@ -59,6 +59,6 @@ def compact_scan_feed(feed):
                        for row in result['1h']['candidates'] if row['symbol'] in four],
     }
     # Preserve the independent legacy resonance ranking as a separate board.
-    resonance = feed.get('resonance', [])
+    resonance = feed.get('resonance', []) if result['intersection']['fresh'] else []
     result['resonance'] = {'count': len(resonance), 'top10': [pick(row, ('symbol', 'score', 'structure', 'structure_1h', 'structure_4h', 'daily_pct', 'vs_btc_pct', 'derivative_adjustment')) for row in resonance[:10]]}
     return result

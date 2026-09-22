@@ -195,16 +195,22 @@ sizes; CVD remains Binance six-hour taker-flow proxy with timeframe disclosed.
 `ranking_key`, not legacy display `score`, is the ordering authority. Every
 board is sorted before slicing its top ten. MUBARAK is a diagnostic sample only.
 
-## V5.7 1H structure-first ordering
+## V5.8 1H Background First
 
-The 1H policy now orders structure quality, high compression/reexpansion,
- daily background, 4H continuation, Key K/stage, upside space, BTC resilience,
-capital confirmation, and auxiliary evidence (all descending lexicographically).
-The existing 4H hard filter and last-12 closed 1H Key K eligibility run before
-ranking. Scores, freshness, full independent USDT perpetual universes, and
-new-Key-K label-only behavior are unchanged. No symbol-specific slots exist.
-The 4H policy stays V5.6. Feed `strategy_by_timeframe` explicitly records
-`1h=V5.7_1H_STRUCTURE_FIRST` and `4h=V5.6_INTEGRATED_CONTINUATION`.
+1H orders daily background, 4H continuation, structure quality, current stage,
+BTC resilience, upside space, capital confirmation, then auxiliary evidence.
+Key K is mandatory (last 12 closed bars, volume >= 2.5 times previous and above
+preceding 24-bar mean); its age, strength and new marker never add rank points.
+There is one pool, including unconfirmed daily bases at the lowest priority.
+Daily tiers: high consolidation with a preceding 4H Key K and clear restart;
+bull divergence; bull consolidation; bull reexpansion; bottom reversal; unconfirmed.
+The 1H formal pool uses the 4H bearish-divergence veto and Key K qualification,
+without legacy entry-timing gates. Skeleton quality and current stage are scored
+separately. Capital compares four-hour price/OI and six-hour CVD/taker flow;
+rising price with OI below -2% is labelled short covering and penalized.
+The 4H policy and its existing 2.2x Key K threshold remain V5.6 unchanged.
+Feed strategies are `V5.8_1H_BACKGROUND_FIRST` / `V5.6_INTEGRATED_CONTINUATION`.
+Compact feeds suppress stale boards and never fill a short Top 10.
 
 ## Bounded ChatGPT feed
 

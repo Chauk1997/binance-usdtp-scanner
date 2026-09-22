@@ -1,12 +1,12 @@
 """Versioned higher-timeframe evidence; all inputs must be closed candles."""
 import math
 
-VERSION = 'V5.7_1H_STRUCTURE_FIRST'
+VERSION = 'V5.8_1H_BACKGROUND_FIRST'
 VERSION_4H = 'V5.6_INTEGRATED_CONTINUATION'
-POLICY_1H = ['structure_quality.score', 'high_compression_reexpansion_quality.score',
-             'daily_background_quality.quality_rank', 'four_hour_continuation_quality.score',
-             'key_structure_quality', 'upside_space.score',
-             'relative_btc_resilience.score', 'capital_confirmation.score', 'auxiliary_score']
+POLICY_1H = ['daily_background_quality.quality_rank', 'four_hour_continuation_quality.score',
+             'structure_quality.score', 'high_compression_reexpansion_quality.score',
+             'relative_btc_resilience.score', 'upside_space.score',
+             'capital_confirmation.score', 'auxiliary_score']
 POLICY_4H = ['daily_background_quality.quality_rank', 'daily_continuation_quality.score',
              'structure_quality.score', 'high_compression_reexpansion_quality.score',
              'key_structure_quality', 'upside_space.score',

@@ -62,7 +62,7 @@ def test_priority_and_projection():
 
 
 @pytest.mark.parametrize('tf,builder,scan,stage', [
-    ('1h', 'build_v36_results','scan_one_symbol_v33','qualified'),
+    ('1h', 'build_v36_results','qualify_background_first','qualified'),
     ('4h', 'build_4h_final_results','scan_one_symbol_4h_v44','entry_structure_checked')])
 def test_real_builders_rank_before_top10(monkeypatch, tf, builder, scan, stage):
     symbols = [str(i) for i in range(12)]
@@ -74,7 +74,7 @@ def test_real_builders_rank_before_top10(monkeypatch, tf, builder, scan, stage):
     monkeypatch.setattr(main, 'read_json', read)
     monkeypatch.setattr(main, 'load_dataframe', lambda *args: None)
     monkeypatch.setattr(main.time, 'time', lambda: DURATIONS[tf]/1000+.1)
-    monkeypatch.setattr(main, scan, lambda s: {'stage':stage,'status':'可進場','v33_structure_score':int(s), 'test_score':int(s)})
+    monkeypatch.setattr(main, scan, lambda s: {'stage':stage,'status':'qualified' if tf=='1h' else '可進場','v33_structure_score':int(s), 'test_score':int(s)})
     monkeypatch.setattr(main, 'calculate_4h_structure_score', lambda b: b['test_score'])
     result = getattr(main,builder)()
     assert len(result) == 10

@@ -58,7 +58,11 @@ class ScanSnapshot:
             feed = self._feed
         if feed is not None:
             checks = freshness(feed)
-            return {**feed, **checks,
+            # Keep timing/coverage evidence, but never publish a stale 1H board.
+            visible = feed
+            if not checks['fresh_for_1h']:
+                visible = {**feed, '1h': {**feed.get('1h', {}), 'candidates': [], 'entry': []}}
+            return {**visible, **checks,
                     "status": "stale" if checks['stale'] else "complete",
                     "feed_ready": not checks['stale']}
         status = self.status()

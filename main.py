@@ -1,3 +1,4 @@
+import background_first
 import asyncio
 import json
 import time
@@ -834,6 +835,7 @@ def analyze_4h_hard_veto(df):
 def find_key_candles(
     df,
     lookback=12,
+    volume_multiplier=2.2,
 ):
     """Last 12 closed bars: large bullish body, upper wick < half range,
     volume >= 2.2 * previous and > preceding 24-bar mean. No lower-wick gate.
@@ -893,7 +895,7 @@ def find_key_candles(
 
         volume_vs_prev = v / pv
 
-        if volume_vs_prev < 2.2:
+        if volume_vs_prev < volume_multiplier:
             continue
 
         volume_ma24_before = float(
@@ -3726,7 +3728,7 @@ async def fetch_symbol_derivatives(
             {
                 "symbol": symbol,
                 "period": "1h",
-                "limit": 6,
+                "limit": 7,
             },
             semaphore,
         ),
@@ -3738,7 +3740,7 @@ async def fetch_symbol_derivatives(
             {
                 "symbol": symbol,
                 "period": "1h",
-                "limit": 6,
+                "limit": 7,
             },
             semaphore,
         ),
@@ -3798,6 +3800,10 @@ async def fetch_symbol_derivatives(
         top_account,
         premium,
     ) = await asyncio.gather(*tasks)
+    closed_capital = background_first.closed_capital_inputs(oi_hist, taker, scan_now_ms())
+    # Keep the legacy six samples byte-for-byte equivalent for 4H consumers.
+    oi_hist = oi_hist[-6:] if isinstance(oi_hist, list) else oi_hist
+    taker = taker[-6:] if isinstance(taker, list) else taker
 
     # ---------------------------------
     # OI / OI Delta
@@ -4048,6 +4054,7 @@ async def fetch_symbol_derivatives(
             score += 0.25
 
     return {
+        "closed_capital_1h": closed_capital,
         "symbol":
             symbol,
 
@@ -5757,6 +5764,21 @@ async def build_daily_strength_cache():
     }
 
 
+@per_scan_cached
+def qualify_background_first(symbol):
+    four = load_dataframe(symbol, "4h")
+    if analyze_4h_hard_veto(four)["hard_veto"]:
+        return {"stage": "4h_hard_veto"}
+    operation = load_dataframe(symbol, "1h")
+    if operation is None or len(operation) < 60:
+        return {"stage": "insufficient_data"}
+    key = find_key_candles(operation, volume_multiplier=2.5)
+    if not key["passed"]:
+        return {"stage": "key_candle_reject"}
+    return {"stage": "qualified", "status": "qualified", "key_candle": key,
+            "v33_structure_score": background_first.structure_quality(operation)["score"]}
+
+
 def get_current_entry_candidates():
     """
     Run technical Hard Gates locally.
@@ -5775,7 +5797,7 @@ def get_current_entry_candidates():
     for symbol in symbols:
 
         result = (
-            scan_one_symbol_v33(
+            qualify_background_first(
                 symbol
             )
         )
@@ -5784,7 +5806,7 @@ def get_current_entry_candidates():
             result.get("stage")
             == "qualified"
             and result.get("status")
-            == "可進場"
+            == "qualified"
         ):
             candidates.append(
                 symbol
@@ -5932,8 +5954,8 @@ def rank_items(items, timeframe, read_bars, now_ms):
         daily = background_quality(daily_df)
         four = background_quality(four_df)
         operation = load_dataframe(symbol, timeframe)
-        key = find_key_candles(operation) if operation is not None else {"passed": False}
-        entry = analyze_current_entry(operation, key) if key.get("passed") else {}
+        key = find_key_candles(operation, volume_multiplier=2.5 if timeframe == "1h" else 2.2) if operation is not None else {"passed": False}
+        entry = analyze_current_entry(operation, key) if timeframe == "4h" and key.get("passed") else {}
         # Strongest qualifying Key K push; no recency or symbol bonus.
         key_push = max((max(0, k["ema15_pull_pct"]) for k in key.get("candidates", [])), default=0)
         daily_cont = continuation_quality(daily_df)
@@ -5961,6 +5983,16 @@ def rank_items(items, timeframe, read_bars, now_ms):
                     auxiliary_evidence=item.get("derivatives", {}),
                     key_candle=key, structure_stage=operation_cont["state"],
                     key_structure_quality=operation_cont["score"] + min(key_push, 1) / 10)
+        if timeframe == "1h" and operation is not None and len(operation) >= 60:
+            stage = background_first.structure_stage(operation, continuation_quality(operation))
+            item.update(
+                daily_background_quality=background_first.daily_quality(
+                    daily, daily_cont, four_cont, find_key_candles(four_df, volume_multiplier=2.5) if four_df is not None else {}),
+                structure_quality=background_first.structure_quality(operation),
+                high_compression_reexpansion_quality=stage,
+                structure_stage=stage["state"],
+                capital_confirmation=background_first.capital_confirmation((item.get("derivatives") or {}).get("closed_capital_1h") or {}, operation))
+            item.pop("key_structure_quality", None)
     return rank_background(items, timeframe)
 
 
@@ -5982,8 +6014,8 @@ def build_v36_results(limit=10):
         DERIVATIVES_CACHE
     )
 
-    if not daily or not derivatives:
-        return []
+    daily = daily or {}
+    derivatives = derivatives or {}
 
     daily_symbols = daily.get(
         "symbols",
@@ -6006,7 +6038,7 @@ def build_v36_results(limit=10):
     for symbol in symbols:
 
         base = (
-            scan_one_symbol_v33(
+            qualify_background_first(
                 symbol
             )
         )
@@ -6015,7 +6047,7 @@ def build_v36_results(limit=10):
             base.get("stage")
             != "qualified"
             or base.get("status")
-            != "可進場"
+            != "qualified"
         ):
             continue
 
@@ -6031,11 +6063,9 @@ def build_v36_results(limit=10):
             )
         )
 
-        if (
-            not strength
-            or not derivative
-        ):
-            continue
+        # Capital is confirmation, never another qualification gate.
+        strength = strength or {}
+        derivative = derivative or {}
 
         structure_score = float(
             base.get(
@@ -6081,7 +6111,7 @@ def build_v36_results(limit=10):
                 ),
 
             "status":
-                "entry_now",
+                "qualified",
 
             "structure_score":
                 structure_score,
@@ -6118,6 +6148,7 @@ def build_v36_results(limit=10):
                 derivative_context,
 
             "derivatives": {
+                "closed_capital_1h": derivative.get("closed_capital_1h", {}),
                 "oi_value": derivative.get("oi_value"),
                 "cvd_proxy_6h": derivative.get("cvd_proxy_6h"),
                 "oi_delta_1h_pct":
@@ -12306,7 +12337,7 @@ def build_scan_feed(data):
         "ranking_policy": POLICY_1H,
         "ranking_policy_by_timeframe": {"1h": POLICY_1H, "4h": POLICY_4H},
         "qualification_policy": {
-            "1h": "all USDT perpetuals -> 4h bearish divergence hard exclude -> independent 1h structure and last-12 Key K",
+            "1h": "all USDT perpetuals -> 4h bearish divergence hard exclude -> 1d background -> 4h continuation -> mandatory last-12 closed 1h Key K (volume >= 2.5x previous) -> structure quality -> stage -> BTC resilience -> upside -> capital -> auxiliary; no backup pool or entry gate",
             "4h": "all USDT perpetuals -> daily bullish divergence / bull consolidation / bottom reversal -> independent 4h structure and last-12 Key K",
             "new_key_candle": "label only; no recency score, upgrade or rank boost",
             "large_bull_body": "body >= preceding 24-bar average absolute body",
@@ -12387,8 +12418,8 @@ def quality_diagnostic(symbol):
               "four_hour_continuation_quality": continuation_quality(four_df), "timeframes": {}}
     for tf in ("1h", "4h"):
         df = load_dataframe(symbol, tf)
-        key = find_key_candles(df) if df is not None else {"passed": False}
-        technical = scan_one_symbol_v33(symbol) if tf == "1h" else scan_one_symbol_4h_v44(symbol)
+        key = find_key_candles(df, volume_multiplier=2.5 if tf == "1h" else 2.2) if df is not None else {"passed": False}
+        technical = qualify_background_first(symbol) if tf == "1h" else scan_one_symbol_4h_v44(symbol)
         result["timeframes"][tf] = {"key_candle": key, "continuation_quality": continuation_quality(df),
                                     "stage": technical.get("stage"),
                                     "status": technical.get("status")}

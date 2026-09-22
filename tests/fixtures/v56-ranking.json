@@ -1,0 +1,638 @@
+[
+  {
+    "symbol": "A",
+    "structure_score": 12,
+    "daily_background_quality": {
+      "state": "bullish_consolidation",
+      "rank": 3,
+      "eligible_4h": true,
+      "hard_exclude": false,
+      "ema15": 0.0300969564,
+      "sma30": 0.0271796667,
+      "sma45": 0.0241708889,
+      "slopes_5": {
+        "ema15": 0.06251316956744501,
+        "sma30": 0.08597038117308609,
+        "sma45": 0.09404641069315045
+      },
+      "gaps": {
+        "ema15": 0.12069434897779034,
+        "sma30": 0.1244794021621605
+      },
+      "upward_divergence": false,
+      "downward_divergence": true,
+      "prior_bull_bars_ago": 12,
+      "prior_bear_bars_ago": null,
+      "close_time": 1789948799999,
+      "thresholds": {
+        "slope_bars": 5,
+        "gap_growth_bars": 3,
+        "history_bars": 60,
+        "regime_confirmation_bars": 3,
+        "forming_sma30_tolerance": 0.0025
+      },
+      "quality_rank": 4
+    },
+    "four_hour_continuation_quality": {
+      "state": "healthy_bull_continuation",
+      "score": 4,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": true,
+      "reexpanding": true,
+      "high_compression": false,
+      "high_consolidation": false,
+      "high_zone_position": 0.7867,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1527,
+      "extension_pct": 3.7233,
+      "consolidation_windows": [],
+      "close_time": 1789977599999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "daily_continuation_quality": {
+      "state": "preserved_bull_consolidation",
+      "score": 3,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": false,
+      "reexpanding": false,
+      "high_compression": false,
+      "high_consolidation": true,
+      "high_zone_position": 0.7593,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1804,
+      "extension_pct": 10.8418,
+      "consolidation_windows": [],
+      "close_time": 1789948799999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "structure_quality": {
+      "score": 13.0,
+      "raw_structure_score": 12.0,
+      "continuation_adjustment": 1.0
+    },
+    "four_hour_background_quality": {
+      "state": "bullish_divergence",
+      "rank": 4,
+      "eligible_4h": true,
+      "hard_exclude": false,
+      "ema15": 0.0327505817,
+      "sma30": 0.0316436667,
+      "sma45": 0.0310375556,
+      "slopes_5": {
+        "ema15": 0.021671574559754214,
+        "sma30": 0.019097818598529548,
+        "sma45": 0.01282813924993187
+      },
+      "gaps": {
+        "ema15": 0.03566372991048303,
+        "sma30": 0.019528312983513568
+      },
+      "upward_divergence": true,
+      "downward_divergence": false,
+      "prior_bull_bars_ago": 1,
+      "prior_bear_bars_ago": 55,
+      "close_time": 1789977599999,
+      "thresholds": {
+        "slope_bars": 5,
+        "gap_growth_bars": 3,
+        "history_bars": 60,
+        "regime_confirmation_bars": 3,
+        "forming_sma30_tolerance": 0.0025
+      }
+    },
+    "higher_tf_quality": {
+      "primary": "1d",
+      "four_hour_rank": 4,
+      "daily_rank": 3
+    },
+    "key_structure_quality": 4.0,
+    "relative_btc_resilience": {
+      "score": 0
+    },
+    "auxiliary_score": 0,
+    "high_compression_reexpansion_quality": {
+      "state": "healthy_bull_continuation",
+      "score": 4,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": true,
+      "reexpanding": true,
+      "high_compression": false,
+      "high_consolidation": false,
+      "high_zone_position": 0.7867,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1527,
+      "extension_pct": 3.7233,
+      "consolidation_windows": [],
+      "close_time": 1789977599999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "upside_space": {
+      "score": 4.71,
+      "status": "known_resistance",
+      "nearest_resistance": 0.03557,
+      "distance_pct": 4.710038269060934,
+      "lookback_bars": 60,
+      "cap_pct": 10
+    },
+    "capital_confirmation": {
+      "score": 0,
+      "status": "partial_or_unavailable",
+      "oi_delta_pct": null,
+      "cvd_proxy_6h": null,
+      "taker_buy_sell_ratio_6h": null,
+      "flow_window": "6h",
+      "oi_window": "4h",
+      "cvd_kind": "Binance taker-flow proxy"
+    },
+    "auxiliary_evidence": {},
+    "key_candle": {
+      "passed": false,
+      "count": 0,
+      "latest": null,
+      "candidates": []
+    },
+    "structure_stage": "healthy_bull_continuation",
+    "ranking_policy": [
+      "daily_background_quality.quality_rank",
+      "daily_continuation_quality.score",
+      "structure_quality.score",
+      "high_compression_reexpansion_quality.score",
+      "key_structure_quality",
+      "upside_space.score",
+      "relative_btc_resilience.score",
+      "capital_confirmation.score",
+      "auxiliary_score"
+    ],
+    "ranking_key": [
+      4.0,
+      3.0,
+      13.0,
+      4.0,
+      4.0,
+      4.71,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "symbol": "C",
+    "structure_score": 7,
+    "daily_background_quality": {
+      "state": "bullish_consolidation",
+      "rank": 3,
+      "eligible_4h": true,
+      "hard_exclude": false,
+      "ema15": 0.0300969564,
+      "sma30": 0.0271796667,
+      "sma45": 0.0241708889,
+      "slopes_5": {
+        "ema15": 0.06251316956744501,
+        "sma30": 0.08597038117308609,
+        "sma45": 0.09404641069315045
+      },
+      "gaps": {
+        "ema15": 0.12069434897779034,
+        "sma30": 0.1244794021621605
+      },
+      "upward_divergence": false,
+      "downward_divergence": true,
+      "prior_bull_bars_ago": 12,
+      "prior_bear_bars_ago": null,
+      "close_time": 1789948799999,
+      "thresholds": {
+        "slope_bars": 5,
+        "gap_growth_bars": 3,
+        "history_bars": 60,
+        "regime_confirmation_bars": 3,
+        "forming_sma30_tolerance": 0.0025
+      },
+      "quality_rank": 4
+    },
+    "four_hour_continuation_quality": {
+      "state": "healthy_bull_continuation",
+      "score": 4,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": true,
+      "reexpanding": true,
+      "high_compression": false,
+      "high_consolidation": false,
+      "high_zone_position": 0.7867,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1527,
+      "extension_pct": 3.7233,
+      "consolidation_windows": [],
+      "close_time": 1789977599999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "daily_continuation_quality": {
+      "state": "preserved_bull_consolidation",
+      "score": 3,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": false,
+      "reexpanding": false,
+      "high_compression": false,
+      "high_consolidation": true,
+      "high_zone_position": 0.7593,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1804,
+      "extension_pct": 10.8418,
+      "consolidation_windows": [],
+      "close_time": 1789948799999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "structure_quality": {
+      "score": 8.0,
+      "raw_structure_score": 7.0,
+      "continuation_adjustment": 1.0
+    },
+    "four_hour_background_quality": {
+      "state": "bullish_divergence",
+      "rank": 4,
+      "eligible_4h": true,
+      "hard_exclude": false,
+      "ema15": 0.0327505817,
+      "sma30": 0.0316436667,
+      "sma45": 0.0310375556,
+      "slopes_5": {
+        "ema15": 0.021671574559754214,
+        "sma30": 0.019097818598529548,
+        "sma45": 0.01282813924993187
+      },
+      "gaps": {
+        "ema15": 0.03566372991048303,
+        "sma30": 0.019528312983513568
+      },
+      "upward_divergence": true,
+      "downward_divergence": false,
+      "prior_bull_bars_ago": 1,
+      "prior_bear_bars_ago": 55,
+      "close_time": 1789977599999,
+      "thresholds": {
+        "slope_bars": 5,
+        "gap_growth_bars": 3,
+        "history_bars": 60,
+        "regime_confirmation_bars": 3,
+        "forming_sma30_tolerance": 0.0025
+      }
+    },
+    "higher_tf_quality": {
+      "primary": "1d",
+      "four_hour_rank": 4,
+      "daily_rank": 3
+    },
+    "key_structure_quality": 4.0,
+    "relative_btc_resilience": {
+      "score": 0
+    },
+    "auxiliary_score": 0,
+    "high_compression_reexpansion_quality": {
+      "state": "healthy_bull_continuation",
+      "score": 4,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": true,
+      "reexpanding": true,
+      "high_compression": false,
+      "high_consolidation": false,
+      "high_zone_position": 0.7867,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1527,
+      "extension_pct": 3.7233,
+      "consolidation_windows": [],
+      "close_time": 1789977599999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "upside_space": {
+      "score": 4.71,
+      "status": "known_resistance",
+      "nearest_resistance": 0.03557,
+      "distance_pct": 4.710038269060934,
+      "lookback_bars": 60,
+      "cap_pct": 10
+    },
+    "capital_confirmation": {
+      "score": 0,
+      "status": "partial_or_unavailable",
+      "oi_delta_pct": null,
+      "cvd_proxy_6h": null,
+      "taker_buy_sell_ratio_6h": null,
+      "flow_window": "6h",
+      "oi_window": "4h",
+      "cvd_kind": "Binance taker-flow proxy"
+    },
+    "auxiliary_evidence": {},
+    "key_candle": {
+      "passed": false,
+      "count": 0,
+      "latest": null,
+      "candidates": []
+    },
+    "structure_stage": "healthy_bull_continuation",
+    "ranking_policy": [
+      "daily_background_quality.quality_rank",
+      "daily_continuation_quality.score",
+      "structure_quality.score",
+      "high_compression_reexpansion_quality.score",
+      "key_structure_quality",
+      "upside_space.score",
+      "relative_btc_resilience.score",
+      "capital_confirmation.score",
+      "auxiliary_score"
+    ],
+    "ranking_key": [
+      4.0,
+      3.0,
+      8.0,
+      4.0,
+      4.0,
+      4.71,
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "symbol": "B",
+    "structure_score": 3,
+    "daily_background_quality": {
+      "state": "bullish_consolidation",
+      "rank": 3,
+      "eligible_4h": true,
+      "hard_exclude": false,
+      "ema15": 0.0300969564,
+      "sma30": 0.0271796667,
+      "sma45": 0.0241708889,
+      "slopes_5": {
+        "ema15": 0.06251316956744501,
+        "sma30": 0.08597038117308609,
+        "sma45": 0.09404641069315045
+      },
+      "gaps": {
+        "ema15": 0.12069434897779034,
+        "sma30": 0.1244794021621605
+      },
+      "upward_divergence": false,
+      "downward_divergence": true,
+      "prior_bull_bars_ago": 12,
+      "prior_bear_bars_ago": null,
+      "close_time": 1789948799999,
+      "thresholds": {
+        "slope_bars": 5,
+        "gap_growth_bars": 3,
+        "history_bars": 60,
+        "regime_confirmation_bars": 3,
+        "forming_sma30_tolerance": 0.0025
+      },
+      "quality_rank": 4
+    },
+    "four_hour_continuation_quality": {
+      "state": "healthy_bull_continuation",
+      "score": 4,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": true,
+      "reexpanding": true,
+      "high_compression": false,
+      "high_consolidation": false,
+      "high_zone_position": 0.7867,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1527,
+      "extension_pct": 3.7233,
+      "consolidation_windows": [],
+      "close_time": 1789977599999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "daily_continuation_quality": {
+      "state": "preserved_bull_consolidation",
+      "score": 3,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": false,
+      "reexpanding": false,
+      "high_compression": false,
+      "high_consolidation": true,
+      "high_zone_position": 0.7593,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1804,
+      "extension_pct": 10.8418,
+      "consolidation_windows": [],
+      "close_time": 1789948799999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "structure_quality": {
+      "score": 4.0,
+      "raw_structure_score": 3.0,
+      "continuation_adjustment": 1.0
+    },
+    "four_hour_background_quality": {
+      "state": "bullish_divergence",
+      "rank": 4,
+      "eligible_4h": true,
+      "hard_exclude": false,
+      "ema15": 0.0327505817,
+      "sma30": 0.0316436667,
+      "sma45": 0.0310375556,
+      "slopes_5": {
+        "ema15": 0.021671574559754214,
+        "sma30": 0.019097818598529548,
+        "sma45": 0.01282813924993187
+      },
+      "gaps": {
+        "ema15": 0.03566372991048303,
+        "sma30": 0.019528312983513568
+      },
+      "upward_divergence": true,
+      "downward_divergence": false,
+      "prior_bull_bars_ago": 1,
+      "prior_bear_bars_ago": 55,
+      "close_time": 1789977599999,
+      "thresholds": {
+        "slope_bars": 5,
+        "gap_growth_bars": 3,
+        "history_bars": 60,
+        "regime_confirmation_bars": 3,
+        "forming_sma30_tolerance": 0.0025
+      }
+    },
+    "higher_tf_quality": {
+      "primary": "1d",
+      "four_hour_rank": 4,
+      "daily_rank": 3
+    },
+    "key_structure_quality": 4.0,
+    "relative_btc_resilience": {
+      "score": 0
+    },
+    "auxiliary_score": 0,
+    "high_compression_reexpansion_quality": {
+      "state": "healthy_bull_continuation",
+      "score": 4,
+      "established_bull": true,
+      "structure_preserved": true,
+      "ema15_turning_up": true,
+      "reexpanding": true,
+      "high_compression": false,
+      "high_consolidation": false,
+      "high_zone_position": 0.7867,
+      "restart": false,
+      "overextended": false,
+      "extension_atr": 1.1527,
+      "extension_pct": 3.7233,
+      "consolidation_windows": [],
+      "close_time": 1789977599999,
+      "thresholds": {
+        "history_bars": 60,
+        "established_bars": 3,
+        "consolidation_bars": 3,
+        "high_zone_position": 0.65,
+        "max_consolidation_range_atr": 3.0,
+        "max_retracement": 0.5,
+        "slow_ma_tolerance": 0.03,
+        "max_extension_atr": 3.0,
+        "max_extension_pct": 12.0
+      }
+    },
+    "upside_space": {
+      "score": 4.71,
+      "status": "known_resistance",
+      "nearest_resistance": 0.03557,
+      "distance_pct": 4.710038269060934,
+      "lookback_bars": 60,
+      "cap_pct": 10
+    },
+    "capital_confirmation": {
+      "score": 0,
+      "status": "partial_or_unavailable",
+      "oi_delta_pct": null,
+      "cvd_proxy_6h": null,
+      "taker_buy_sell_ratio_6h": null,
+      "flow_window": "6h",
+      "oi_window": "4h",
+      "cvd_kind": "Binance taker-flow proxy"
+    },
+    "auxiliary_evidence": {},
+    "key_candle": {
+      "passed": false,
+      "count": 0,
+      "latest": null,
+      "candidates": []
+    },
+    "structure_stage": "healthy_bull_continuation",
+    "ranking_policy": [
+      "daily_background_quality.quality_rank",
+      "daily_continuation_quality.score",
+      "structure_quality.score",
+      "high_compression_reexpansion_quality.score",
+      "key_structure_quality",
+      "upside_space.score",
+      "relative_btc_resilience.score",
+      "capital_confirmation.score",
+      "auxiliary_score"
+    ],
+    "ranking_key": [
+      4.0,
+      3.0,
+      4.0,
+      4.0,
+      4.0,
+      4.71,
+      0.0,
+      0.0,
+      0.0
+    ]
+  }
+]
