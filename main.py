@@ -12478,6 +12478,12 @@ async def scan_run_compact():
     return await scan_snapshot.run(_build_complete_snapshot, "compact")
 
 
+@app.get("/scan/feed/summary")
+async def scan_feed_summary():
+    from scan_summary import compact_scan_feed
+    return compact_scan_feed(scan_snapshot.feed())
+
+
 @app.get("/scan/feed")
 async def scan_feed():
     return scan_snapshot.feed()
