@@ -289,3 +289,23 @@ def test_optional_btc_does_not_make_valid_v2_snapshot_stale():
         feed.update({f'latest_closed_{tf}_{k}':v for k,v in bar.items()})
         if tf!='1d':feed[tf]={'candidates':[{'candle':bar,'btc_candle':None}]}
     assert not freshness(feed,NOW)['stale']
+
+
+def test_enrichment_frontier_preserves_all_boundary_ties():
+    rows=[{'symbol':str(i),'ranking_key':[20-i]} for i in range(9)]
+    rows += [{'symbol':'tie'+str(i),'ranking_key':[11]} for i in range(5)]
+    rows += [{'symbol':'low','ranking_key':[10]}]
+    frontier=runner.enrichment_frontier(rows)
+    assert len(frontier)==14 and 'low' not in [r['symbol'] for r in frontier]
+    assert len(rows)==15
+
+
+def test_enrichment_frontier_produces_exact_same_top10_for_arbitrary_auxiliary():
+    import random
+    random.seed(54)
+    for _ in range(100):
+        rows=[{'symbol':str(i),'ranking_key':[random.randrange(4),random.randrange(3)]} for i in range(40)]
+        frontier=runner.enrichment_frontier(rows)
+        score={str(i):random.uniform(-1e9,1e9) for i in range(40)}
+        rank=lambda row:(*row['ranking_key'],score[row['symbol']])
+        assert sorted(rows,key=rank,reverse=True)[:10]==sorted(frontier,key=rank,reverse=True)[:10]

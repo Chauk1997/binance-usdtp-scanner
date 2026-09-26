@@ -112,6 +112,19 @@ async def fetch_auxiliary(api,client,symbol,tf,cutoff):
     return result
 
 
+def enrichment_frontier(rows, limit=10):
+    """All technical ties at the Top10 boundary; auxiliary is last in the key.
+
+Lower technical keys cannot enter Top10 for any auxiliary value. The universe
+and technical candidate counts remain complete, independent of this frontier.
+    """
+    ranked=sorted(rows,key=lambda row:row['ranking_key'],reverse=True)
+    if len(ranked)<=limit:
+        return ranked
+    boundary=ranked[limit-1]['ranking_key']
+    return [row for row in ranked if row['ranking_key']>=boundary]
+
+
 async def build(api):
     started=time.monotonic();cutoff=scan_now_ms()
     headers={}
@@ -149,7 +162,8 @@ async def build(api):
             item=strategy.special(symbol,frames[symbol])
             if item:
                 (special_formal if item['status']=='formal' else approaching).append(item)
-        requests={(r['symbol'],tf) for tf,rows in pools.items() for r in rows}
+        finalists={tf:enrichment_frontier(rows) for tf,rows in pools.items()}
+        requests={(r['symbol'],tf) for tf,rows in finalists.items() for r in rows}
         requests.update((r['symbol'],'1h') for r in special_formal)
         auxiliary={}
         gate=asyncio.Semaphore(3)
@@ -157,7 +171,7 @@ async def build(api):
             async with gate:
                 auxiliary[symbol,tf]=await fetch_auxiliary(api,client,symbol,tf,cutoff)
         await asyncio.gather(*(enrich(symbol,tf) for symbol,tf in sorted(requests)))
-        for tf,rows in pools.items():
+        for tf,rows in finalists.items():
             for row in rows:
                 row['auxiliary']=auxiliary[row['symbol'],tf]
                 score,warnings=strategy.auxiliary_score(row['auxiliary'])
@@ -168,7 +182,7 @@ async def build(api):
             row['auxiliary']=auxiliary[row['symbol'],'1h']
         special_formal.sort(key=lambda r:(-r['key_candle']['close_time'],r['symbol']))
         approaching.sort(key=lambda r:(-r['completed_count'],-r['anchor_key']['close_time'],r['symbol']))
-        boards={tf:rows[:10] for tf,rows in pools.items()}
+        boards={tf:rows[:10] for tf,rows in finalists.items()}
         feed=dict(status='complete',scanner='V5.4_CHATGPT_FEED',strategy=strategy.VERSION,
                   strategy_by_timeframe={tf:strategy.VERSION for tf in boards},
                   parameters=strategy.parameters(),ranking_policy=strategy.POLICY,
