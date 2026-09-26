@@ -233,9 +233,9 @@ def test_auxiliary_api_failure_stays_missing(monkeypatch):
     async def get(*args,**kwargs):calls.append(args);return {'_error':'rate_limited'}
     async def sleep(*args):pass
     monkeypatch.setattr(runner.asyncio,'sleep',sleep)
-    api=SimpleNamespace(safe_get=get,BINANCE_BASE='https://example.test')
+    api=SimpleNamespace(safe_get=get,BINANCE_BASE='https://example.test',read_json=lambda p:[],cache_file=lambda *a:'missing')
     e=asyncio.run(runner.fetch_auxiliary(api,None,'X','1h',NOW))
-    assert len(calls)==7 and e['status']=='unavailable' and len(e['errors'])==7
+    assert len(calls)==6 and e['status']=='unavailable' and len(e['errors'])==7
     assert e['cvd']['value'] is None and s.auxiliary_score(e)[0]==0
 
 

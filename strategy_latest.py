@@ -272,7 +272,7 @@ def special(symbol, frames, cfg=CONFIG):
 
 def valid_cvd(evidence):
     cvd=evidence.get('cvd') or {}
-    return ((cvd.get('kind')=='direct' or (cvd.get('kind')=='calculated_from_trades' and cvd.get('complete') is True)) and cvd.get('reliable') is True and
+    return ((cvd.get('kind')=='direct' or (cvd.get('kind') in ('calculated_from_trades','calculated_from_exchange_volume') and cvd.get('complete') is True)) and cvd.get('reliable') is True and
             bool(cvd.get('source')) and number(cvd.get('value')) is not None and
             cvd.get('window_start')==evidence.get('window_start') and
             cvd.get('window_end')==evidence.get('window_end') and

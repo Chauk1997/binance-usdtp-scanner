@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 import httpx
 import strategy_latest as strategy
-from trade_cvd import calculate_cvd
+from trade_cvd import calculate_cvd_from_exchange_volume
 from scan_freshness import scan_now_ms, expected_bar
 
 
@@ -103,7 +103,7 @@ async def fetch_auxiliary(api,client,symbol,tf,cutoff):
         await asyncio.sleep(.35)
     result=parse_auxiliary(data,tf,cutoff)
     result['errors'].update(errors)
-    result['cvd']=await calculate_cvd(api,client,symbol,result['window_start'],result['window_end'])
+    result['cvd']=calculate_cvd_from_exchange_volume(api.read_json(api.cache_file(symbol,tf)),result['window_start'],result['window_end'])
     if result['cvd']['reliable']:
         result['missing_fields'].remove('cvd')
         result['status']='partial' if result['missing_fields'] else 'complete'

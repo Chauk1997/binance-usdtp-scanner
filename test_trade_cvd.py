@@ -67,3 +67,34 @@ def test_calculated_cvd_drives_breadth_warning(run):
     assert market_warning({'1h':rows})['triggered']
     r['complete']=False
     assert not market_warning({'1h':rows})['triggered']
+
+
+def test_exchange_volume_exact_decimal_and_no_ratio_proxy():
+    from trade_cvd import calculate_cvd_from_exchange_volume as calc
+    rows=[dict(open_time=0,close_time=99,volume='0.5',taker_buy_base='0.3'),
+          dict(open_time=100,close_time=199,volume='1.2',taker_buy_base='0.2')]
+    r=calc(rows,0,200)
+    assert r['value_decimal']=='-0.7' and r['requests']==0 and r['complete']
+    assert valid_cvd({'cvd':r,'window_start':0,'window_end':200})
+    assert r['buy_volume']==.5 and r['sell_volume']==1.2
+
+
+@pytest.mark.parametrize('rows',[
+    [],[dict(open_time=1,close_time=99,volume='1',taker_buy_base='.5')],
+    [dict(open_time=0,close_time=100,volume='1',taker_buy_base='.5')],
+    [dict(open_time=0,close_time=99,volume='1',taker_buy_base='2')],
+    [dict(open_time=0,close_time=99,volume='NaN',taker_buy_base='.5')],
+    [dict(open_time=0,close_time=99,volume='1')],
+    [dict(open_time=0,close_time=99,volume='1',taker_buy_base='.5')]*2,
+])
+def test_exchange_volume_invalid_is_unavailable(rows):
+    from trade_cvd import calculate_cvd_from_exchange_volume as calc
+    r=calc(rows,0,100)
+    assert r['value'] is None and not r['complete'] and not r['reliable']
+
+
+def test_exchange_volume_ignores_later_forming_bar():
+    from trade_cvd import calculate_cvd_from_exchange_volume as calc
+    rows=[dict(open_time=0,close_time=99,volume='10',taker_buy_base='8'),
+          dict(open_time=100,close_time=199,volume='999',taker_buy_base='0')]
+    assert calc(rows,0,100)['value']==6

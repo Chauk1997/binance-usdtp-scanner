@@ -69,3 +69,40 @@ async def calculate_cvd(api, client, symbol, start, end, *, max_requests=128):
                 'reliable':True,'complete':True,'reason':None}
     except (httpx.HTTPError,KeyError,TypeError,ValueError,InvalidOperation,OverflowError) as exc:
         return {**result,'reason':'trade_data_error:'+type(exc).__name__}
+
+
+def calculate_cvd_from_exchange_volume(bars, start, end):
+    """Exact window delta from exchange-reported total and taker-buy volumes.
+
+These are executed-volume aggregates, not a candle-direction estimate or a
+buy/sell ratio proxy. The window's zero-anchored cumulative endpoint is B-S.
+"""
+    result=dict(value=None,kind='calculated_from_exchange_volume',reliable=False,
+                complete=False,source='Binance USD-M /fapi/v1/klines volume+taker_buy_base',
+                window_start=start,window_end=end,anchor='zero_at_window_start',
+                unit='base_asset_quantity',method='sum(2*taker_buy_base-volume)',
+                requests=0)
+    try:
+        if type(start) is not int or type(end) is not int or end<=start:
+            return {**result,'reason':'invalid_window'}
+        selected=sorted((b for b in (bars or []) if start<=int(b['open_time'])<end),key=lambda b:int(b['open_time']))
+        cursor=start;buy=Decimal(0);total=Decimal(0)
+        for row in selected:
+            opening,closing=int(row['open_time']),int(row['close_time'])
+            if opening!=cursor or closing<opening or closing>=end:
+                return {**result,'reason':'incomplete_or_duplicate_window'}
+            v,b=Decimal(str(row['volume'])),Decimal(str(row['taker_buy_base']))
+            if not v.is_finite() or not b.is_finite() or v<0 or not 0<=b<=v:
+                return {**result,'reason':'invalid_executed_volume'}
+            total+=v;buy+=b;cursor=closing+1
+        if cursor!=end:
+            return {**result,'reason':'incomplete_window'}
+        sell=total-buy;delta=buy-sell
+        if not all(math.isfinite(float(v)) for v in (buy,sell,delta)):
+            return {**result,'reason':'numeric_overflow'}
+        return {**result,'value':float(delta),'value_decimal':str(delta),
+                'buy_volume':float(buy),'sell_volume':float(sell),
+                'total_volume':float(total),'bar_count':len(selected),
+                'complete':True,'reliable':True,'reason':None}
+    except (KeyError,TypeError,ValueError,InvalidOperation,OverflowError) as exc:
+        return {**result,'reason':'volume_data_error:'+type(exc).__name__}

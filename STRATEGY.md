@@ -1,6 +1,8 @@
+> 部署驗證後更新：生產 CVD 已改用已收盤 K 線的實際成交總量與主動買量：sum(2*taker_buy_base-volume)，標記 calculated_from_exchange_volume。以窗口起點歸零，單位為基礎資產量；資料缺漏／超出窗口／買量超過總量則不可用。這是成交量的精確聚合差額，不是用 K 棒顏色估計，也不使用 Taker 比率代替。下文 aggTrades 方式保留為獨立稽核工具，不再用於每輪生產掃盘；其 128 請求上限與 48 小時限制亦僅適用於該工具。原因：線上逐筆補抓全候選耗時 10078 秒，無法滿足每小時更新。
+
 # Scanner V54：2026-09-26 確認版
 
-策略識別：`V5.9_CONFIRMED_20260926_TRADE_CVD`。正式執行入口為 `scanner_latest.build`；`strategy_latest` 負責純技術判定。舊 V5.8/V5.6 函式只保留供歷史回歸測試，已解除舊策略、交集榜、入場與衍生品手動更新的 HTTP 路由，正式排程不再呼叫。
+策略識別：`V5.9_CONFIRMED_20260926_VOLUME_CVD`。正式執行入口為 `scanner_latest.build`；`strategy_latest` 負責純技術判定。舊 V5.8/V5.6 函式只保留供歷史回歸測試，已解除舊策略、交集榜、入場與衍生品手動更新的 HTTP 路由，正式排程不再呼叫。
 
 ## 使用者確定的規則
 
