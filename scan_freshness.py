@@ -56,8 +56,15 @@ def freshness(feed, now_ms=None):
             if isinstance(rows, list):
                 for row in rows:
                     for field in ('candle', 'btc_candle'):
+                        if field == 'btc_candle' and (feed or {}).get('freshness_version') == 'closed-bars-v2' and row.get(field) is None:
+                            continue  # Relative BTC evidence is optional, never fabricated.
                         candle = row.get(field) or {}
                         good = good and all(candle.get(k) == v for k, v in expected.items())
+        if (feed or {}).get('freshness_version') == 'closed-bars-v2':
+            for dependency in (('4h', '1d') if tf == '1h' else ('1d',)):
+                expected_bg = expected_bar(dependency, now_ms)
+                actual_bg = {k: (feed or {}).get(f'latest_closed_{dependency}_{k}') for k in expected_bg}
+                good = good and actual_bg == expected_bg and bool((feed or {}).get('coverage', {}).get(dependency, {}).get('complete'))
         result[f'fresh_for_{tf}'] = bool(good)
         result.update({f'latest_closed_{tf}_{k}': v for k, v in actual.items()})
         if not good:

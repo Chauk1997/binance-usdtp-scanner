@@ -107,7 +107,7 @@ def test_stale_board_is_not_published_and_short_top10_not_filled():
     from test_scan_summary import sample
     feed=sample();feed['fresh_for_1h']=False
     out=compact_scan_feed(feed)
-    assert out['1h']['candidates']==[] and out['intersection']['candidates']==[]
+    assert out['1h']['candidates']==[] and out['special']['formal']==[]
     feed['fresh_for_1h']=True;feed['1h']['candidates']=feed['1h']['candidates'][:2]
     assert len(compact_scan_feed(feed)['1h']['candidates'])==2
 

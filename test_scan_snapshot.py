@@ -7,11 +7,12 @@ import pytest
 from fastapi.testclient import TestClient
 import main
 from scan_snapshot import ScanSnapshot, utc_now
+from strategy_latest import VERSION
 
 
 def result():
     feed = {"status": "complete", "scanner": "V5.4_CHATGPT_FEED",
-            "generated_at_utc": utc_now(), "1h": {}, "4h": {}, "resonance": []}
+            "generated_at_utc": utc_now(), "strategy": VERSION, "1h": {}, "4h": {}, "special": {"formal":[],"approaching":[]}}
     return {"status": "complete", "feed": feed, "formal": {"status": "complete"}}
 
 
@@ -117,17 +118,14 @@ def test_corrupt_cache(tmp_path):
 
 
 def test_pipeline_once(snapshot):
-    formal = {"status": "complete", "elapsed_seconds": 23,
-              "1h": {"top10": []}, "4h": {"top10": []}, "resonance": {"results": []}}
-    with patch.object(main, "get_symbols", return_value=[]), \
-         patch.object(main, "_scan_run_formal", return_value=formal) as scan, \
-         patch.object(main, "build_watchlist_for_timeframe", return_value={}) as watch:
+    import scanner_latest
+    built=result()
+    with patch.object(scanner_latest, 'build', return_value=built) as scan, \
+         patch.object(main, '_scan_run_formal', side_effect=AssertionError('legacy path')):
         with TestClient(main.app) as client:
-            assert client.get("/scan/run/all").json() == formal
-            feed = client.get("/scan/feed").json()
-            assert feed["status"] == "stale"
-            assert feed["strategy"] == "V5.8_1H_BACKGROUND_FIRST"
+            assert client.get('/scan/run/all').json() == built['formal']
+            feed=client.get('/scan/feed').json()
+            assert feed['strategy'] == VERSION
             assert scan.call_count == 1
-            assert watch.call_count == 2
-            client.get("/scan/feed")
+            client.get('/scan/feed')
             assert scan.call_count == 1

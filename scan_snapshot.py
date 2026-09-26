@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from threading import Lock
 from scan_freshness import freshness
+from scanner_contract import VERSION
 
 
 def utc_now():
@@ -27,7 +28,8 @@ class ScanSnapshot:
             if (cached.get("status") == "complete"
                     and cached.get("scanner") == "V5.4_CHATGPT_FEED"
                     and cached.get("generated_at_utc")
-                    and all(key in cached for key in ("1h", "4h", "resonance"))):
+                    and cached.get("strategy") == VERSION
+                    and all(key in cached for key in ("1h", "4h", "special"))):
                 self._feed = cached
                 self._state["status"] = "complete"
         except (OSError, ValueError, AttributeError):
@@ -59,9 +61,13 @@ class ScanSnapshot:
         if feed is not None:
             checks = freshness(feed)
             # Keep timing/coverage evidence, but never publish a stale 1H board.
-            visible = feed
-            if not checks['fresh_for_1h']:
-                visible = {**feed, '1h': {**feed.get('1h', {}), 'candidates': [], 'entry': []}}
+            visible = dict(feed)
+            for tf in ('1h', '4h'):
+                if not checks['fresh_for_' + tf]:
+                    visible[tf] = {**feed.get(tf, {}), 'candidates': [], 'entry': []}
+            if checks['stale']:
+                visible['special'] = {'formal': [], 'approaching': [], 'status': 'stale'}
+                visible['market_state'] = {'triggered': False, 'status': 'stale'}
             return {**visible, **checks,
                     "status": "stale" if checks['stale'] else "complete",
                     "feed_ready": not checks['stale']}
@@ -90,6 +96,8 @@ class ScanSnapshot:
                     self._state.update(status="stopped", finished_at_utc=utc_now(),
                                        last_error={"status": result.get("status"),
                                                    "stage": result.get("stage"),
+                                                   "reason": result.get("reason"),
+                                                   "unknown_symbols": result.get("unknown_symbols"),
                                                    "incomplete_intervals": result.get("incomplete_intervals"),
                                                    "missing_symbols": result.get("missing_symbols")})
                 return result

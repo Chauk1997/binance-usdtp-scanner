@@ -12439,36 +12439,13 @@ scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json")
 
 
 async def _build_complete_snapshot():
+    import scanner_latest
     global RATE_LIMITED
     token = SCAN_TIME.set(int(time.time() * 1000))
     cache_token = SCAN_CACHE.set({})
     try:
         RATE_LIMITED = False
-        async with httpx.AsyncClient() as client:
-            await get_symbols(client)
-        formal = await _scan_run_formal()
-        if formal.get("status") != "complete":
-            return formal
-        full = build_v52_scan(formal)
-        compact = build_compact_scan(full)
-        feed = build_scan_feed(compact)
-        feed['validation_samples'] = {symbol: quality_diagnostic(symbol) for symbol in
-                                     ('MEUSDT', 'IRYSUSDT', 'SKLUSDT', '1000FLOKIUSDT', 'OPGUSDT', 'MUBARAKUSDT')}
-        feed['universe_policy'] = 'independent full Binance USDT perpetual universe for each timeframe'
-        feed['coverage'] = {}
-        symbols = read_json(SYMBOL_CACHE) or []
-        for tf in ('1h', '4h'):
-            actual = latest_closed(read_json(cache_file('BTCUSDT', tf)), tf)
-            missing = [symbol for symbol in symbols
-                       if latest_closed(read_json(cache_file(symbol, tf)), tf) != expected_bar(tf)]
-            feed['coverage'][tf] = {'complete': interval_cache_is_current(tf) and not missing,
-                                    'symbols': len(symbols), 'missing': missing}
-            for key in ('open_time', 'close_time'):
-                feed[f'latest_closed_{tf}_{key}'] = (actual or {}).get(key)
-        feed['scan_started_at_utc'] = datetime.fromtimestamp(scan_now_ms()/1000, timezone.utc).isoformat()
-        feed['freshness_version'] = 'closed-bars-v1'
-        return {"status": "complete", "formal": formal, "v52": full,
-                "compact": compact, "feed": feed}
+        return await scanner_latest.build(__import__(__name__))
     finally:
         SCAN_CACHE.reset(cache_token)
         SCAN_TIME.reset(token)
@@ -12526,3 +12503,11 @@ async def scan_status():
             'scheduler_enabled': os.environ.get('SCANNER_SCHEDULER_ENABLED', '1') == '1',
             'next_hourly_scan_in_seconds': seconds_until_scan(),
             'binance_retry_at_utc': datetime.fromtimestamp(BINANCE_RETRY_AT, timezone.utc).isoformat() if BINANCE_RETRY_AT > time.time() else None}
+
+
+# Retired strategies cannot be invoked through public routes after migration.
+_ACTIVE_SCAN_ROUTES = {'/scan/run/all', '/scan/feed/summary', '/scan/status', '/scan/feed', '/scan/run/all/v52', '/scan/run/compact'}
+app.router.routes[:] = [route for route in app.router.routes
+                       if not ((getattr(route, 'path', '').startswith('/scan/')
+                                and route.path not in _ACTIVE_SCAN_ROUTES)
+                               or getattr(route, 'path', '').startswith('/market/'))]

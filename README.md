@@ -1,3 +1,9 @@
+# Active strategy: 2026-09-26 confirmed scan logic
+
+The production scan pipeline is now `V5.9_CONFIRMED_20260926_TRADE_CVD`. See [STRATEGY.md](STRATEGY.md) for the current rules, explicit pattern thresholds, API limitations and migration contract. All material below is historical implementation documentation; it does not define the active strategy. The old intersection/entry endpoints are retired.
+
+---
+
 # Completed scanner feed
 
 `GET /scan/feed` reads the most recently completed V5.4 snapshot from memory.

@@ -21,7 +21,7 @@ def ping() -> str:
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True))
 def get_scan_feed() -> dict:
-    """Get freshness/coverage, independently ranked 1H/4H Top 10 and intersection.
+    """Get freshness/coverage, independently ranked 1H/4H Top 10 and sequential special/approaching boards.
 
     Historical rows must not be published when their timeframe is not fresh.
     Full diagnostics remain at /scan/feed, never returned by this tool.

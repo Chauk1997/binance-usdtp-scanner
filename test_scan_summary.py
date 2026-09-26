@@ -6,12 +6,13 @@ from unittest.mock import patch
 import pytest
 from scan_summary import compact_scan_feed
 from scan_freshness import freshness
+from strategy_latest import VERSION
 
 
 def sample():
     def row(i):
         return {'symbol': f'S{i}', 'ranking_key': [100-i, i], 'structure_quality': {'score':100-i}, 'diagnostics': 'x'*10000}
-    return {'status':'complete', 'fresh_for_1h':True, 'fresh_for_4h':True,
+    return {'strategy':VERSION,'special':{'formal':[], 'approaching':[]},'status':'complete', 'fresh_for_1h':True, 'fresh_for_4h':True,
             'coverage': {'1h':{'complete':True, 'symbols':521, 'missing':[]}},
             '1h':{'candidates':[row(i) for i in range(30)]},
             '4h':{'candidates':[row(i) for i in range(5,30)]},
@@ -25,19 +26,19 @@ def test_bounded_order_independence_and_no_mutation():
     for tf in ('1h','4h'):
         assert [r['symbol'] for r in result[tf]['candidates']]==[r['symbol'] for r in feed[tf]['candidates'][:10]]
         assert [r['ranking_key'] for r in result[tf]['candidates']]==[r['ranking_key'] for r in feed[tf]['candidates'][:10]]
-    assert result['intersection']['candidates']==[{'symbol':f'S{i}', 'rank_1h':i+1, 'rank_4h':i-4} for i in range(5,10)]
+    assert 'intersection' not in result and 'resonance' not in result
     assert len(json.dumps(result))<20000
     assert 'diagnostics' not in json.dumps(result).replace('diagnostics_included','')
 
 
 @pytest.mark.parametrize('state', ['not_ready','running','stale','complete'])
 def test_states_and_empty_boards(state):
-    feed={'status':state, 'fresh_for_1h':False, 'fresh_for_4h':False, 'stale':True, 'stale_reasons':['missing bars']}
+    feed={'strategy':VERSION,'status':state, 'fresh_for_1h':False, 'fresh_for_4h':False, 'stale':True, 'stale_reasons':['missing bars']}
     result=compact_scan_feed(feed)
     assert all(result[k]==v for k,v in feed.items())
-    assert not result['intersection']['fresh']
+    assert result['special']['formal']==[]
     assert result['1h']['candidates']==[]
-    assert result['1h']['candidate_count'] is None
+    assert result['1h']['candidate_count'] == 0
 
 
 def test_incomplete_coverage_is_bounded():
@@ -92,6 +93,6 @@ def test_request_time_freshness_survives_projection():
         output=compact_scan_feed({**feed,**checks})
         assert output['fresh_for_1h'] is one
         assert output['fresh_for_4h'] is four
-        assert output['intersection']['fresh'] is (one and four)
+        assert 'intersection' not in output
     feed['coverage']['1h']['complete']=False
     assert compact_scan_feed({**feed,**freshness(feed,at)})['fresh_for_1h'] is False
