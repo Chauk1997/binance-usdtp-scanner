@@ -12465,10 +12465,10 @@ async def _build_complete_snapshot():
 
 
 async def _scheduled_scans():
-    # Bootstrap/catch up after restarts, then start every hour at :00:05.
+    # Bootstrap/catch up after restarts, then start every hour at :01:00.
     while True:
         now = datetime.now(timezone.utc)
-        if now.minute == 0 and now.second < 5:
+        if now.minute == 0:
             await asyncio.sleep(seconds_until_scan(now))
         try:
             await scan_snapshot.run(_build_complete_snapshot, "formal")

@@ -10,7 +10,7 @@ def compact_scan_feed(feed):
                 '1h':{'candidates':[]},'4h':{'candidates':[]},
                 'special':{'formal':[],'approaching':[]},
                 'market_state':{'triggered':False,'status':'unavailable'}}
-    result={k:deepcopy(v) for k,v in feed.items() if k not in ('diagnostics','validation_samples','resonance','intersection','1h','4h','special','market_state')}
+    result={k:deepcopy(v) for k,v in feed.items() if k not in ('diagnostics','candle_audit','validation_samples','resonance','intersection','1h','4h','special','market_state')}
     for tf in ('1h','4h'):
         board=feed.get(tf,{})
         fresh=bool(feed.get('fresh_for_'+tf))

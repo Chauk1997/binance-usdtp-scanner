@@ -19,8 +19,8 @@ def scan_now_ms():
 
 # Availability is separate from mathematical closure. Never advance a candle's
 # close time or call the previous snapshot fresh during this bounded wait.
-AVAILABILITY_DELAY_MS = 5000
-PUBLICATION_GRACE_MS = 90000
+AVAILABILITY_DELAY_MS = 60000
+PUBLICATION_GRACE_MS = 150000
 _CLOCK = None
 
 
@@ -115,7 +115,7 @@ def freshness(feed, now_ms=None):
 
 def seconds_until_scan(now=None):
     now = now or datetime.now(TAIPEI)
-    target = now.replace(minute=0, second=5, microsecond=0)
+    target = now.replace(minute=1, second=0, microsecond=0)
     if target <= now:
         target += timedelta(hours=1)
     return (target - now).total_seconds()

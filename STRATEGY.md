@@ -1,3 +1,5 @@
+> 最新正式規格見 [CONFIRMED_20260927.md](CONFIRMED_20260927.md)。下文為歷史稽核；其中5秒排程與Direct CVD要求已被60秒啟動及CVD Proxy取代。
+
 # 2026-09-27 收盤 K 稽核修正
 
 策略識別改為 `V5.10_AUDITED_20260927_CLOSED_BARS`；時鐘版本 `closed-bars-v3`。

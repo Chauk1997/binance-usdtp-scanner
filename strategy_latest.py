@@ -5,6 +5,7 @@ Type 1 = compression launch; type 2 = structure breakout; type 3 = 1H accelerati
 """
 from dataclasses import dataclass, asdict
 import math
+import os
 from decimal import Decimal
 import pandas as pd
 from scan_freshness import DURATIONS, expected_bar
@@ -30,7 +31,12 @@ class Config:
     warning_fraction: float = .60
     warning_min_symbols: int = 5
 
-CONFIG = Config()
+CONFIG = Config(
+    warning_fraction=float(os.environ.get('SCANNER_WARNING_FRACTION', '.60')),
+    warning_min_symbols=int(os.environ.get('SCANNER_WARNING_MIN_SYMBOLS', '5')),
+)
+if not 0 < CONFIG.warning_fraction <= 1 or CONFIG.warning_min_symbols < 1:
+    raise ValueError('Invalid scanner warning breadth configuration')
 
 
 def number(value):
@@ -201,6 +207,7 @@ def qualify(symbol, tf, frames, btc=None, cfg=CONFIG):
           sum(key['ma_pull_pct'].values()),-key['bars_ago'],relative if relative is not None else 0]
     return dict(symbol=symbol,timeframe=tf,**event,background=bg,daily_background=daily,
                 ranking_key=rank,ranking_policy=POLICY,relative_strength_pct=relative,
+                technical_pass=True, reasons=[bg["state"], current["state"], *event["types"], "Key K >=2.2x previous AND >prior24 mean"],
                 candle={k:int(op.iloc[-1][k]) for k in ('open_time','close_time')},
                 btc_candle={k:int(btc.iloc[-1][k]) for k in ('open_time','close_time')} if btc is not None else None),None
 
@@ -264,6 +271,7 @@ def special(symbol, frames, cfg=CONFIG):
                 evidence[3]=dict(stage=STAGES[3],close_time=final['compression']['end_time'],start_time=final['compression']['start_time'])
                 evidence.append(dict(stage=STAGES[4],close_time=final['key_candle']['close_time']))
         item=dict(symbol=symbol,completed_stages=evidence,completed_count=len(evidence),
+                  current_stage='S'+str(len(evidence)), timeframe='1h',
                   missing_conditions=STAGES[len(evidence):],next_signal=STAGES[len(evidence)] if len(evidence)<5 else None,
                   status='formal' if len(evidence)==5 else 'approaching',anchor_key=key,
                   key_candle=final['key_candle'] if final else None)
@@ -272,9 +280,9 @@ def special(symbol, frames, cfg=CONFIG):
     return best
 
 
-def valid_cvd(evidence):
-    cvd=evidence.get('cvd') or {}
-    return ((cvd.get('kind')=='direct' or (cvd.get('kind') in ('calculated_from_trades','calculated_from_exchange_volume') and cvd.get('complete') is True)) and cvd.get('reliable') is True and
+def valid_cvd_proxy(evidence):
+    cvd=evidence.get('cvd_proxy') or {}
+    return (cvd.get('kind') == 'proxy' and cvd.get('complete') is True and cvd.get('reliable') is True and
             bool(cvd.get('source')) and number(cvd.get('value')) is not None and
             cvd.get('window_start')==evidence.get('window_start') and
             cvd.get('window_end')==evidence.get('window_end') and
@@ -288,9 +296,9 @@ def auxiliary_score(e):
         if v is not None:
             score+=1 if v>neutral else -1 if v<neutral else 0
             if v<neutral: warnings.append(name+'_weak')
-    if valid_cvd(e):
-        score+=1 if e['cvd']['value']>0 else -1 if e['cvd']['value']<0 else 0
-        if e['cvd']['value']<0: warnings.append('cvd_negative')
+    if valid_cvd_proxy(e):
+        score+=1 if e['cvd_proxy']['value']>0 else -1 if e['cvd_proxy']['value']<0 else 0
+        if e['cvd_proxy']['value']<0: warnings.append('cvd_proxy_negative')
     funding=number(e.get('funding_rate'))
     if funding is not None and funding>.001:
         score-=1;warnings.append('funding_crowded')
@@ -300,8 +308,8 @@ def auxiliary_score(e):
 def market_warning(boards,cfg=CONFIG):
     details={}
     for tf,rows in boards.items():
-        eligible=[r for r in rows if valid_cvd(r.get('auxiliary',{})) and number(r.get('auxiliary',{}).get('taker_buy_sell_ratio')) is not None]
-        weak=[r['symbol'] for r in eligible if r['auxiliary']['cvd']['value']<0 and r['auxiliary']['taker_buy_sell_ratio']<1]
+        eligible=[r for r in rows if valid_cvd_proxy(r.get('auxiliary',{})) and number(r.get('auxiliary',{}).get('taker_buy_sell_ratio')) is not None]
+        weak=[r['symbol'] for r in eligible if r['auxiliary']['cvd_proxy']['value']<0 and r['auxiliary']['taker_buy_sell_ratio']<1]
         trigger=len(weak)>=cfg.warning_min_symbols and len(weak)/max(len(rows),1)>=cfg.warning_fraction
         details[tf]=dict(total=len(rows),reliable_pairs=len(eligible),weak_symbols=weak,triggered=trigger,
                          status='warning' if trigger else 'insufficient_reliable_data' if len(eligible)<len(rows) or len(rows)<cfg.warning_min_symbols else 'not_broad')
@@ -310,7 +318,7 @@ def market_warning(boards,cfg=CONFIG):
     global_warning=bool(active) and all(d['triggered'] for d in active)
     return dict(triggered=global_warning,message='短線主動買盤同步退潮' if global_warning else None,
                 by_timeframe=details,thresholds=dict(fraction=cfg.warning_fraction,min_symbols=cfg.warning_min_symbols),
-                cvd_note='成交資料計算的 CVD 不完整時，不判定 CVD＋Taker 同步退潮')
+                cvd_note='CVD Proxy = sum(2*taker_buy_base-volume)；窗口不完整時不判定同步退潮')
 
 
 def parameters():

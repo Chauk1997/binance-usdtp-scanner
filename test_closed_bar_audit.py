@@ -52,11 +52,11 @@ def feed_at(now):
 def test_snapshot_pending_then_stale_never_old_board_fresh(text,tmp_path,monkeypatch):
     boundary=ms(text);old=feed_at(boundary-1)
     store=ScanSnapshot(tmp_path/'snapshot.json');store._feed=old
-    for elapsed in (0,1,5000,60000,89999,90000,180000):
+    for elapsed in (0,1,5000,60000,149999,150000,180000):
         monkeypatch.setattr(f,'live_now_ms',lambda:boundary+elapsed)
         view=store.feed()
         assert not view['feed_ready'] and not view['fresh_for_1h']
-        assert view['status']==('pending' if elapsed<90000 else 'stale')
+        assert view['status']==('pending' if elapsed<150000 else 'stale')
         assert not view['1h']['candidates'] and not view['special']['formal']
         assert not view['market_state']['triggered']
         summary=compact_scan_feed(view)
@@ -82,13 +82,13 @@ def test_grace_does_not_hide_older_missing_or_malformed_evidence():
 def test_cache_proof_without_next_forming_candle():
     boundary=ms('2026-09-27T12:00:00+08:00')
     bar=f.expected_bar('1h',boundary)
-    for fetched in (boundary-1,boundary,boundary+4999):
-        assert not f.confirmed_cache([{**bar,'fetched_after_ms':fetched}],'1h',boundary+6000)
-    assert f.confirmed_cache([{**bar,'fetched_after_ms':boundary+5000}],'1h',boundary+6000)
+    for fetched in (boundary-1,boundary,boundary+59999):
+        assert not f.confirmed_cache([{**bar,'fetched_after_ms':fetched}],'1h',boundary+61000)
+    assert f.confirmed_cache([{**bar,'fetched_after_ms':boundary+60000}],'1h',boundary+61000)
 
 
 def test_delayed_api_then_final_only_response_refreshes_cache(tmp_path,monkeypatch):
-    boundary=ms('2026-09-27T12:00:00+08:00');now=boundary+6000
+    boundary=ms('2026-09-27T12:00:00+08:00');now=boundary+61000
     bar=f.expected_bar('1h',boundary)
     prior={k:v-f.DURATIONS['1h'] for k,v in bar.items()}
     def raw(b):return [b['open_time'],'1','2','1','2','220',b['close_time'],'440',4,'120','240','0']
@@ -123,7 +123,7 @@ def test_server_clock_not_host_and_explicit_boundary_wait(monkeypatch):
     monkeypatch.setattr(main.asyncio,'sleep',sleep)
     monkeypatch.setattr(scanner_latest,'build',build)
     assert asyncio.run(main._build_complete_snapshot())['status']=='complete'
-    assert waits==[5] and captured==[boundary+5000]
+    assert waits==[60] and captured==[boundary+60000]
     assert f.SCAN_TIME.get() is None
     async def unavailable(*args,**kw):return {'_error':'timeout'}
     monkeypatch.setattr(main,'safe_get',unavailable)

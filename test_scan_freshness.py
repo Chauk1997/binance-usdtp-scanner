@@ -67,10 +67,10 @@ def test_closed_boundary_strict_and_no_blind_drop(tmp_path, monkeypatch):
 
 
 def test_schedule():
-    for text, seconds in [('2026-09-20T21:59:59+08:00',6),
-                          ('2026-09-20T22:00:00+08:00',5),
-                          ('2026-09-20T22:00:05+08:00',3600),
-                          ('2026-09-20T23:59:59+08:00',6)]:
+    for text, seconds in [('2026-09-20T21:59:59+08:00',61),
+                          ('2026-09-20T22:00:00+08:00',60),
+                          ('2026-09-20T22:01:00+08:00',3600),
+                          ('2026-09-20T23:59:59+08:00',61)]:
         assert seconds_until_scan(datetime.fromisoformat(text)) == seconds
 
 
@@ -85,7 +85,7 @@ def test_read_recomputes_and_keeps_generation(tmp_path, monkeypatch):
     asyncio.run(store.run(build,'formal'))
     fresh = store.feed()
     assert fresh['status'] == 'complete' and fresh['generated_at_utc'] != 'old'
-    now += 3600000
+    now += 3660000
     stale = store.feed()
     assert stale['status'] == 'stale' and not stale['feed_ready']
     assert stale['generated_at_utc'] == fresh['generated_at_utc']

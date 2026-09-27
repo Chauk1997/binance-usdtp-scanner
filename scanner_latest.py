@@ -5,8 +5,8 @@ import time
 from datetime import datetime, timezone
 import httpx
 import strategy_latest as strategy
-from trade_cvd import calculate_cvd_from_exchange_volume
-from scan_freshness import scan_now_ms, expected_bar, AVAILABILITY_DELAY_MS
+from cvd_proxy import calculate_cvd_proxy
+from scan_freshness import scan_now_ms, expected_bar, AVAILABILITY_DELAY_MS, latest_closed
 
 
 def select_universe(rows, stock_symbols=()):
@@ -50,8 +50,8 @@ def parse_auxiliary(data,tf,cutoff):
     result=dict(window_start=start,window_end=end,period=tf,oi=None,oi_delta_pct=None,
                 top_position_long_short_ratio=None,top_account_long_short_ratio=None,
                 global_long_short_ratio=None,taker_buy_sell_ratio=None,funding_rate=None,
-                cvd=dict(value=None,kind='unavailable',reliable=False,source=None,
-                         reason='無可靠直接 CVD 資料'),sources={},errors={})
+                cvd_proxy=dict(value=None,label='CVD Proxy',kind='proxy',reliable=False,source=None,
+                         reason='CVD Proxy 資料不足'),sources={},errors={})
     def rows(name):
         value=data.get(name)
         if not isinstance(value,list):
@@ -80,7 +80,7 @@ def parse_auxiliary(data,tf,cutoff):
         r=max(funding,key=lambda r:int(r['fundingTime']))
         result['funding_rate']=strategy.number(r.get('fundingRate'))
         result['sources']['funding']=dict(timestamp=int(r['fundingTime']),kind='last_settled_rate')
-    result['missing_fields']=[k for k in ('oi','oi_delta_pct','top_position_long_short_ratio','top_account_long_short_ratio','global_long_short_ratio','taker_buy_sell_ratio','funding_rate') if result[k] is None]+['cvd']
+    result['missing_fields']=[k for k in ('oi','oi_delta_pct','top_position_long_short_ratio','top_account_long_short_ratio','global_long_short_ratio','taker_buy_sell_ratio','funding_rate') if result[k] is None]+['cvd_proxy']
     result['status']='partial' if any(result[k] is not None for k in ('oi','taker_buy_sell_ratio','funding_rate')) else 'unavailable'
     return result
 
@@ -103,12 +103,12 @@ async def fetch_auxiliary(api,client,symbol,tf,cutoff):
         await asyncio.sleep(.35)
     result=parse_auxiliary(data,tf,cutoff)
     result['errors'].update(errors)
-    result['cvd']=calculate_cvd_from_exchange_volume(api.read_json(api.cache_file(symbol,tf)),result['window_start'],result['window_end'])
-    if result['cvd']['reliable']:
-        result['missing_fields'].remove('cvd')
+    result['cvd_proxy']=calculate_cvd_proxy(api.read_json(api.cache_file(symbol,tf)),result['window_start'],result['window_end'])
+    if result['cvd_proxy']['reliable']:
+        result['missing_fields'].remove('cvd_proxy')
         result['status']='partial' if result['missing_fields'] else 'complete'
     else:
-        result['errors']['cvd']=result['cvd']['reason']
+        result['errors']['cvd_proxy']=result['cvd_proxy']['reason']
     return result
 
 
@@ -147,19 +147,26 @@ async def build(api):
             await asyncio.sleep(2 ** attempt)
             for tf in missing:
                 await api.run_incremental_update(tf)
-        coverage={};frames={};diagnostics={}
+        coverage={};frames={};diagnostics={};candle_audit={}
         for symbol in symbols:
-            frames[symbol]={};diagnostics[symbol]={}
+            frames[symbol]={};diagnostics[symbol]={};candle_audit[symbol]={}
             for tf in ('1h','4h','1d'):
-                df,error=strategy.prepare(api.read_json(api.cache_file(symbol,tf)),tf,cutoff)
+                bars=api.read_json(api.cache_file(symbol,tf))
+                df,error=strategy.prepare(bars,tf,cutoff)
+                proven=api.symbol_cache_is_current(symbol,tf)
+                candle_audit[symbol][tf]=dict(expected=expected_bar(tf,cutoff),
+                    available=latest_closed(bars,tf,cutoff),
+                    scan=expected_bar(tf,cutoff) if df is not None and proven else None,
+                    cache_final_confirmed=proven)
                 frames[symbol][tf]=df
                 if error: diagnostics[symbol][tf]=error
         for tf in ('1h','4h','1d'):
             missing=[s for s in symbols if frames[s][tf] is None or not api.symbol_cache_is_current(s,tf)]
-            coverage[tf]=dict(complete=not missing,symbols=len(symbols),missing=missing)
+            coverage[tf]=dict(complete=not missing,symbols=len(symbols),scanned=len(symbols)-len(missing),missing=missing)
         if any(not c['complete'] for c in coverage.values()):
             return dict(status='stopped',stage='closed_candle_coverage',coverage=coverage,
-                        missing_symbols={tf:c['missing'] for tf,c in coverage.items()},diagnostics=diagnostics)
+                        missing_symbols={tf:c['missing'] for tf,c in coverage.items()},diagnostics=diagnostics,
+                        candle_audit=candle_audit, failure_kind='data_unavailable_or_stale')
         pools={'1h':[],'4h':[]};special_formal=[];approaching=[]
         btc=frames.get('BTCUSDT',{})
         # Scan every symbol before querying any auxiliary endpoint.
@@ -196,7 +203,9 @@ async def build(api):
                   strategy_by_timeframe={tf:strategy.VERSION for tf in boards},
                   parameters=strategy.parameters(),ranking_policy=strategy.POLICY,
                   universe_policy='All Binance USDT perpetuals; exclude stocks and USDC; no sampling',
-                  universe=universe_info,coverage=coverage,diagnostics=diagnostics,
+                  universe=universe_info,universe_total=len(symbols),scanned=len(symbols),
+                  excluded=len(universe_info.get('excluded',[])),missing=0,
+                  coverage=coverage,diagnostics=diagnostics,candle_audit=candle_audit,
                   special={'formal':special_formal,'approaching':approaching},
                   market_state=strategy.market_warning(boards),
                   clock_source='Binance /fapi/v1/time + monotonic elapsed',

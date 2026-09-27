@@ -1,3 +1,5 @@
+> 最新正式規格見 [CONFIRMED_20260927.md](CONFIRMED_20260927.md)。下文為歷史稽核；其中5秒排程與Direct CVD要求已被60秒啟動及CVD Proxy取代。
+
 # Scanner V54 code-level audit — 2026-09-27
 
 Baseline: `abf1c32bb7c3e21f147baa2697a6fdf68cc298d8`, confirmed against both Railway production deployments. Active code path: `main._build_complete_snapshot → scanner_latest.build → strategy_latest`, with `ScanSnapshot` and MCP `scan_summary`. Historical strategy functions in main.py are not the active strategy and their HTTP routes remain disabled.

@@ -112,14 +112,14 @@ def test_auxiliary_alignment_missing_zero_and_no_proxy():
     e=runner.parse_auxiliary(data,'1h',cutoff)
     assert e['oi']==110 and e['oi_delta_pct']==pytest.approx(10)
     assert e['taker_buy_sell_ratio']==.5 and e['global_long_short_ratio']==1.2
-    assert e['top_position_long_short_ratio'] is None and e['cvd']['value'] is None
+    assert e['top_position_long_short_ratio'] is None and e['cvd_proxy']['value'] is None
     data['taker'][0]['sellVol']='0'
     assert runner.parse_auxiliary(data,'1h',cutoff)['taker_buy_sell_ratio'] is None
 
 
 def warning_row(i,direct=True,weak=True):
     return {'symbol':str(i),'auxiliary':{'window_start':1,'window_end':2,'taker_buy_sell_ratio':.8 if weak else 1.2,
-            'cvd':{'kind':'direct' if direct else 'proxy','reliable':True,'source':'fixture','value':-1,'window_start':1,'window_end':2}}}
+            'cvd_proxy':{'kind':'proxy' if direct else 'direct','complete':True,'reliable':True,'source':'fixture','value':-1,'window_start':1,'window_end':2}}}
 
 
 def test_broad_warning_needs_reliable_cvd_and_breadth():
@@ -128,8 +128,8 @@ def test_broad_warning_needs_reliable_cvd_and_breadth():
     assert not s.market_warning({'1h':weak[:3],'4h':[]})['triggered']
     assert not s.market_warning({'1h':strong,'4h':weak})['triggered']
     assert not s.market_warning({'1h':[warning_row(i,False) for i in range(10)]})['triggered']
-    row=warning_row(0);row['auxiliary']['cvd']['window_end']=3
-    assert not s.valid_cvd(row['auxiliary'])
+    row=warning_row(0);row['auxiliary']['cvd_proxy']['window_end']=3
+    assert not s.valid_cvd_proxy(row['auxiliary'])
 
 
 def special_frames():
@@ -197,7 +197,7 @@ def test_full_pipeline_technical_before_auxiliary(monkeypatch):
     async def universe(*args):return symbols,{'total':3}
     async def aux(api,client,symbol,tf,cutoff):
         queried.append((symbol,tf))
-        return {'oi_delta_pct':-10,'taker_buy_sell_ratio':.1,'cvd':{'value':None}}
+        return {'oi_delta_pct':-10,'taker_buy_sell_ratio':.1,'cvd_proxy':{'value':None}}
     monkeypatch.setattr(runner,'universe',universe);monkeypatch.setattr(runner,'fetch_auxiliary',aux)
     token=SCAN_TIME.set(NOW)
     try: result=asyncio.run(runner.build(api))
@@ -236,7 +236,7 @@ def test_auxiliary_api_failure_stays_missing(monkeypatch):
     api=SimpleNamespace(safe_get=get,BINANCE_BASE='https://example.test',read_json=lambda p:[],cache_file=lambda *a:'missing')
     e=asyncio.run(runner.fetch_auxiliary(api,None,'X','1h',NOW))
     assert len(calls)==6 and e['status']=='unavailable' and len(e['errors'])==7
-    assert e['cvd']['value'] is None and s.auxiliary_score(e)[0]==0
+    assert e['cvd_proxy']['value'] is None and s.auxiliary_score(e)[0]==0
 
 
 def test_insufficient_history_is_not_bearish_veto():
