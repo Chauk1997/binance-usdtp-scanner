@@ -17,8 +17,8 @@ def compact_scan_feed(feed):
         result[tf]={'fresh':fresh,'candidate_count':board.get('candidate_count',0),
                     'candidates':[{k:deepcopy(v) for k,v in row.items() if k!='diagnostics'} for row in board.get('candidates',[])[:10]] if fresh else []}
     fresh=bool(feed.get('fresh_for_1h') and feed.get('fresh_for_4h'))
-    result['special']=deepcopy(feed.get('special',{'formal':[],'approaching':[]})) if fresh else {'formal':[],'approaching':[],'status':'stale'}
-    result['market_state']=deepcopy(feed.get('market_state',{})) if fresh else {'triggered':False,'status':'stale'}
+    result['special']=deepcopy(feed.get('special',{'formal':[],'approaching':[]})) if fresh else {'formal':[],'approaching':[],'status':'pending' if feed.get('pending') else 'stale'}
+    result['market_state']=deepcopy(feed.get('market_state',{})) if fresh else {'triggered':False,'status':'pending' if feed.get('pending') else 'stale'}
     result['coverage']={tf:{**{k:v for k,v in c.items() if k!='missing'}, 'missing_count':len(c.get('missing',[]))} for tf,c in feed.get('coverage',{}).items()}
     result['output_schema']='scanner-summary-v2'
     return result

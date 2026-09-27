@@ -107,6 +107,8 @@ def test_cache_requires_every_symbol_and_post_close_fetch(monkeypatch):
     try:
         assert not main.interval_cache_is_current('1h')
         data['ALT'].append(live)
+        assert not main.interval_cache_is_current('1h')
+        bar['fetched_after_ms'] = now
         assert main.interval_cache_is_current('1h')
     finally:
         SCAN_TIME.reset(token)
@@ -118,7 +120,7 @@ def test_scheduler_bootstrap_and_next_hour(monkeypatch):
         async def run(self, build, response):
             events.append('scan')
         def feed(self):
-            return {'stale': False}
+            return {'stale': False, 'feed_ready': True}
     async def sleep(seconds):
         events.append(seconds)
         raise asyncio.CancelledError()

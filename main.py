@@ -16,7 +16,8 @@ from btc_resilience import rank_items as rank_btc_items, projection
 from continuation_quality import continuation_quality, upside_space, capital_confirmation
 from background_quality import background_quality, rank_background, VERSION, VERSION_4H, POLICY_1H, POLICY_4H
 from scan_freshness import (SCAN_TIME, scan_now_ms, expected_bar, closed_bars,
-                            latest_closed, seconds_until_scan, DURATIONS, SCAN_CACHE, per_scan_cached)
+                            latest_closed, seconds_until_scan, DURATIONS, SCAN_CACHE, per_scan_cached, confirmed_cache,
+                            set_server_clock, live_now_ms, AVAILABILITY_DELAY_MS)
 
 @asynccontextmanager
 async def lifespan(app):
@@ -260,6 +261,7 @@ async def download_klines(
     semaphore,
 ):
     async with semaphore:
+        fetched_after = live_now_ms()
         result = await safe_get(
             client,
             f"{BINANCE_BASE}/fapi/v1/klines",
@@ -285,6 +287,7 @@ async def download_klines(
 
         for k in raw:
             cleaned.append({
+                "fetched_after_ms": fetched_after,
                 "open_time": k[0],
                 "open": k[1],
                 "high": k[2],
@@ -5072,9 +5075,7 @@ async def update_one_kline_cache(
         path
     )
 
-    expected = expected_bar(interval)
-    if (old_bars and int(old_bars[-1]['open_time']) >= expected['close_time'] + 1
-            and latest_closed(old_bars, interval) == expected):
+    if old_bars and confirmed_cache(old_bars, interval):
         return {'symbol': symbol, 'interval': interval, 'status': 'ok',
                 'skipped_current': True}
 
@@ -5083,6 +5084,7 @@ async def update_one_kline_cache(
 
     async with semaphore:
 
+        fetched_after = live_now_ms()
         result = await safe_get(
             client,
             f"{BINANCE_BASE}/fapi/v1/klines",
@@ -5121,7 +5123,7 @@ async def update_one_kline_cache(
         }
 
     new_bars = [
-        clean_kline(k)
+        {**clean_kline(k), "fetched_after_ms": fetched_after}
         for k in raw
     ]
 
@@ -5533,10 +5535,8 @@ def current_interval_open_ms(interval):
 
 
 def symbol_cache_is_current(symbol, interval):
-    expected = expected_bar(interval)
     bars = read_json(cache_file(symbol, interval)) or []
-    return bool(bars and int(bars[-1]['open_time']) >= expected['close_time'] + 1
-                and latest_closed(bars, interval) == expected)
+    return bool(bars and confirmed_cache(bars, interval))
 
 
 def missing_cache_symbols(interval):
@@ -12441,7 +12441,20 @@ scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json")
 async def _build_complete_snapshot():
     import scanner_latest
     global RATE_LIMITED
-    token = SCAN_TIME.set(int(time.time() * 1000))
+    RATE_LIMITED = False  # safe_get still enforces BINANCE_RETRY_AT.
+    # Anchor all technical decisions to Binance, not the host wall clock.
+    async with httpx.AsyncClient() as client:
+        clock = await safe_get(client, BINANCE_BASE + '/fapi/v1/time')
+    server = clock.get('_data', {}).get('serverTime')
+    if type(server) is not int or server <= 0:
+        return {'status': 'stopped', 'stage': 'server_clock', 'reason': 'Binance server time unavailable'}
+    set_server_clock(server)
+    # Explicit scans arriving at the boundary receive the same availability
+    # delay as scheduled scans. Time is frozen only AFTER the short wait.
+    remaining = AVAILABILITY_DELAY_MS - server % DURATIONS['1h']
+    if remaining > 0:
+        await asyncio.sleep(remaining / 1000)
+    token = SCAN_TIME.set(live_now_ms())
     cache_token = SCAN_CACHE.set({})
     try:
         RATE_LIMITED = False
@@ -12464,7 +12477,7 @@ async def _scheduled_scans():
         # Retry incomplete or failed rounds; honor a conservative rate-limit
         # cooldown. An upstream Retry-After takes precedence over hourly timing.
         delay = seconds_until_scan()
-        if scan_snapshot.feed().get('stale', True):
+        if not scan_snapshot.feed().get('feed_ready', False):
             last_error = scan_snapshot.status().get('last_error') or {}
             retry_delay = 5 if last_error.get('stage') == 'closed_candle_coverage' else 30
             delay = max(1, BINANCE_RETRY_AT - time.time()) if RATE_LIMITED else min(delay, retry_delay)

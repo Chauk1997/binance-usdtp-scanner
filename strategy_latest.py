@@ -59,6 +59,8 @@ def prepare(bars, tf, cutoff):
         if ((df.high < df[['open','close','low']].max(axis=1)) |
                 (df.low > df[['open','close','high']].min(axis=1))).any():
             return None, 'invalid_ohlc'
+        if not (df.open_time % DURATIONS[tf] == 0).all():
+            return None, 'unaligned_bar_time'
         if not (df.close_time == df.open_time + DURATIONS[tf] - 1).all():
             return None, 'invalid_bar_duration'
         if len(df) > 1 and not (df.open_time.diff().iloc[1:] == DURATIONS[tf]).all():
@@ -133,7 +135,7 @@ def key_at(df, i):
     pull = {k:float((r[k]/p[k]-1)*100) if number(r[k]) is not None and number(p[k]) not in (None,0) else 0 for k in MA}
     above = bool(min(r.open,r.close)>max(r[k] for k in MA))
     penalty = upper > body*.5
-    quality = (body_quality + int(up) + min(v/avg,10)/10 +
+    quality = (body_quality + int(up) + (min(v/avg,10)/10 if avg else 1) +
                min(max(float(r.close/p.close-1)*100,0),10)/10 + .25*above - .5*penalty)
     return dict(index=i, open_time=int(r.open_time), close_time=int(r.close_time),
                 bars_ago=len(df)-1-i, volume=v, previous_volume=pv, preceding_mean24=avg,

@@ -48,7 +48,7 @@ class ScanSnapshot:
             except (ValueError, TypeError):
                 pass
         checks = freshness(feed)
-        return {**result, "feed_ready": feed is not None and not checks["stale"],
+        return {**result, "feed_ready": feed is not None and checks["feed_ready"],
                 "scan_complete": feed is not None,
                 "generated_at_utc": generated, "age_seconds": age,
                 **checks,
@@ -65,12 +65,12 @@ class ScanSnapshot:
             for tf in ('1h', '4h'):
                 if not checks['fresh_for_' + tf]:
                     visible[tf] = {**feed.get(tf, {}), 'candidates': [], 'entry': []}
-            if checks['stale']:
-                visible['special'] = {'formal': [], 'approaching': [], 'status': 'stale'}
-                visible['market_state'] = {'triggered': False, 'status': 'stale'}
+            if not checks['feed_ready']:
+                visible['special'] = {'formal': [], 'approaching': [], 'status': 'pending' if checks['pending'] else 'stale'}
+                visible['market_state'] = {'triggered': False, 'status': 'pending' if checks['pending'] else 'stale'}
             return {**visible, **checks,
-                    "status": "stale" if checks['stale'] else "complete",
-                    "feed_ready": not checks['stale']}
+                    "status": "stale" if checks['stale'] else "pending" if checks['pending'] else "complete",
+                    "feed_ready": checks['feed_ready']}
         status = self.status()
         return {"status": "running" if status["status"] == "running" else "not_ready",
                 "scanner": "V5.4_CHATGPT_FEED", "feed_ready": False,
@@ -81,7 +81,7 @@ class ScanSnapshot:
     async def run(self, build, response_key):
         with self._lock:
             if self._state["status"] == "running":
-                return {"status": "running", "feed_ready": self._feed is not None}
+                return {"status": "running", "feed_ready": freshness(self._feed)["feed_ready"]}
             self._state = {"status": "running", "started_at_utc": utc_now(),
                            "finished_at_utc": None, "last_error": None}
         # Client disconnect/cancellation must not release the running guard early.
@@ -113,7 +113,7 @@ class ScanSnapshot:
             with self._lock:
                 self._feed = feed
                 self._state.update(status="complete", finished_at_utc=utc_now(), last_error=None)
-            return result[response_key]
+            return self.feed() if result[response_key] is result["feed"] else result[response_key]
         except Exception as exc:
             logging.exception("Full scan failed; keeping previous completed feed")
             with self._lock:

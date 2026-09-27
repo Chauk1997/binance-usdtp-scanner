@@ -117,7 +117,10 @@ def test_corrupt_cache(tmp_path):
         store._executor.shutdown()
 
 
-def test_pipeline_once(snapshot):
+def test_pipeline_once(snapshot, monkeypatch):
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr(main, "safe_get", AsyncMock(return_value={"_data": {"serverTime": 1790481606000}}))
+    monkeypatch.setattr("scan_freshness._CLOCK", None)
     import scanner_latest
     built=result()
     with patch.object(scanner_latest, 'build', return_value=built) as scan, \

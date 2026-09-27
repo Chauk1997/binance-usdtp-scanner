@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import httpx
 import strategy_latest as strategy
 from trade_cvd import calculate_cvd_from_exchange_volume
-from scan_freshness import scan_now_ms, expected_bar
+from scan_freshness import scan_now_ms, expected_bar, AVAILABILITY_DELAY_MS
 
 
 def select_universe(rows, stock_symbols=()):
@@ -138,6 +138,15 @@ async def build(api):
                 update=await api.run_incremental_update(tf)
                 if update.get('status')!='complete':
                     return dict(status='stopped',stage='update_'+tf,detail=update)
+        # A delayed API response may omit the just-closed candle. Retry only
+        # missing symbols, with bounded waits; never substitute the older bar.
+        for attempt in range(3):
+            missing = [tf for tf in ('1h','4h','1d') if not api.interval_cache_is_current(tf)]
+            if not missing or getattr(api, 'RATE_LIMITED', False):
+                break
+            await asyncio.sleep(2 ** attempt)
+            for tf in missing:
+                await api.run_incremental_update(tf)
         coverage={};frames={};diagnostics={}
         for symbol in symbols:
             frames[symbol]={};diagnostics[symbol]={}
@@ -190,12 +199,15 @@ async def build(api):
                   universe=universe_info,coverage=coverage,diagnostics=diagnostics,
                   special={'formal':special_formal,'approaching':approaching},
                   market_state=strategy.market_warning(boards),
+                  clock_source='Binance /fapi/v1/time + monotonic elapsed',
+                  scan_cutoff_ms=cutoff, availability_delay_ms=AVAILABILITY_DELAY_MS,
                   scan_started_at_utc=datetime.fromtimestamp(cutoff/1000,timezone.utc).isoformat(),
-                  elapsed_seconds=round(time.monotonic()-started,2),freshness_version='closed-bars-v2',
+                  elapsed_seconds=round(time.monotonic()-started,2),freshness_version='closed-bars-v3',
                   generated_at_utc=datetime.now(timezone.utc).isoformat())
         for tf in ('1h','4h','1d'):
-            for key,value in expected_bar(tf,cutoff).items():
-                feed['latest_closed_'+tf+'_'+key]=value
+            # All validated histories agree on these observed timestamps.
+            for key in ('open_time', 'close_time'):
+                feed['latest_closed_'+tf+'_'+key]=int(frames[symbols[0]][tf].iloc[-1][key])
         for tf,rows in boards.items():
             feed[tf]=dict(candidate_count=len(pools[tf]),candidates=rows)
         return dict(status='complete',feed=feed,formal=feed,v52=feed,compact=feed)

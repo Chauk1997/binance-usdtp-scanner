@@ -14,19 +14,44 @@ DURATIONS = {'1h': 3600000, '4h': 14400000, '1d': 86400000}
 
 def scan_now_ms():
     fixed = SCAN_TIME.get()
-    return fixed if fixed is not None else int(time.time() * 1000)
+    return fixed if fixed is not None else live_now_ms()
+
+
+# Availability is separate from mathematical closure. Never advance a candle's
+# close time or call the previous snapshot fresh during this bounded wait.
+AVAILABILITY_DELAY_MS = 5000
+PUBLICATION_GRACE_MS = 90000
+_CLOCK = None
+
+
+def set_server_clock(server_ms):
+    global _CLOCK
+    _CLOCK = (int(server_ms), time.monotonic())
+
+
+def live_now_ms():
+    if _CLOCK is None:
+        return int(time.time() * 1000)
+    server, anchor = _CLOCK
+    return server + int((time.monotonic() - anchor) * 1000)
 
 
 def expected_bar(interval, now_ms=None):
     now_ms = scan_now_ms() if now_ms is None else now_ms
-    local = datetime.fromtimestamp(now_ms / 1000, TAIPEI)
-    if interval == '1d':
-        boundary = local.astimezone(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    else:
-        hours = DURATIONS[interval] // 3600000
-        boundary = local.replace(hour=local.hour // hours * hours, minute=0, second=0, microsecond=0)
-    end = int(boundary.timestamp() * 1000) - 1
-    return {'open_time': end + 1 - DURATIONS[interval], 'close_time': end}
+    span = DURATIONS[interval]
+    boundary = int(now_ms) // span * span
+    return {'open_time': boundary - span, 'close_time': boundary - 1}
+
+
+def confirmed_cache(bars, interval, now_ms=None):
+    expected = expected_bar(interval, now_ms)
+    if latest_closed(bars, interval, now_ms) != expected:
+        return False
+    # A forming candle stored before its close cannot become final just because
+    # time passed. Require a post-close API request of this very candle.
+    return any(int(b.get('open_time', -1)) == expected['open_time'] and
+               int(b.get('fetched_after_ms', 0)) >= expected['close_time'] + 1 + AVAILABILITY_DELAY_MS
+               for b in bars)
 
 
 def closed_bars(bars, now_ms=None):
@@ -46,30 +71,45 @@ def latest_closed(bars, interval, now_ms=None):
 
 
 def freshness(feed, now_ms=None):
-    result = {'freshness_timezone': 'Asia/Taipei', 'stale_reasons': []}
-    for tf in ('1h', '4h'):
-        expected = expected_bar(tf, now_ms)
+    feed = feed or {}
+    now = live_now_ms() if now_ms is None else now_ms
+    result = {'freshness_timezone': 'Asia/Taipei', 'stale_reasons': [],
+              'pending_reasons': [], 'publication_grace_ms': PUBLICATION_GRACE_MS}
+    modern = feed.get('freshness_version') in ('closed-bars-v2', 'closed-bars-v3')
+    states = {}
+    for tf in DURATIONS:
+        expected = expected_bar(tf, now)
+        actual = {k: feed.get(f'latest_closed_{tf}_{k}') for k in expected}
+        covered = bool(feed.get('coverage', {}).get(tf, {}).get('complete'))
+        valid_rows = True
+        for rows in feed.get(tf, {}).values():
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                for field in ('candle', 'btc_candle'):
+                    if field == 'btc_candle' and modern and row.get(field) is None:
+                        continue
+                    valid_rows &= row.get(field) == actual
+        previous = {k: v - DURATIONS[tf] for k, v in expected.items()}
+        pending = (covered and valid_rows and actual == previous and
+                   now - (expected['close_time'] + 1) < PUBLICATION_GRACE_MS)
+        states[tf] = ('fresh' if covered and valid_rows and actual == expected else
+                      'pending' if pending else 'stale')
         result['expected_closed_' + tf] = expected
-        actual = {key: (feed or {}).get(f'latest_closed_{tf}_{key}') for key in expected}
-        good = actual == expected and bool((feed or {}).get('coverage', {}).get(tf, {}).get('complete'))
-        for rows in (feed or {}).get(tf, {}).values():
-            if isinstance(rows, list):
-                for row in rows:
-                    for field in ('candle', 'btc_candle'):
-                        if field == 'btc_candle' and (feed or {}).get('freshness_version') == 'closed-bars-v2' and row.get(field) is None:
-                            continue  # Relative BTC evidence is optional, never fabricated.
-                        candle = row.get(field) or {}
-                        good = good and all(candle.get(k) == v for k, v in expected.items())
-        if (feed or {}).get('freshness_version') == 'closed-bars-v2':
-            for dependency in (('4h', '1d') if tf == '1h' else ('1d',)):
-                expected_bg = expected_bar(dependency, now_ms)
-                actual_bg = {k: (feed or {}).get(f'latest_closed_{dependency}_{k}') for k in expected_bg}
-                good = good and actual_bg == expected_bg and bool((feed or {}).get('coverage', {}).get(dependency, {}).get('complete'))
-        result[f'fresh_for_{tf}'] = bool(good)
         result.update({f'latest_closed_{tf}_{k}': v for k, v in actual.items()})
-        if not good:
-            result['stale_reasons'].append(f'{tf}: snapshot does not cover expected closed bar')
-    result['stale'] = not (result['fresh_for_1h'] and result['fresh_for_4h'])
+    for tf in DURATIONS:
+        dependencies = ([tf] + (['4h', '1d'] if tf == '1h' else ['1d'] if tf == '4h' else [])) if modern else [tf]
+        relevant = [states[d] for d in dependencies]
+        state = 'stale' if 'stale' in relevant else 'pending' if 'pending' in relevant else 'fresh'
+        result['fresh_for_' + tf] = state == 'fresh'
+        result['freshness_state_' + tf] = state
+        if state != 'fresh' and (modern or tf != '1d'):
+            result['pending_reasons' if state == 'pending' else 'stale_reasons'].append(
+                f'{tf}: awaiting completed snapshot' if state == 'pending' else
+                f'{tf}: snapshot does not cover expected closed bar')
+    result['stale'] = bool(result['stale_reasons'])
+    result['pending'] = bool(result['pending_reasons']) and not result['stale']
+    result['feed_ready'] = result['fresh_for_1h'] and result['fresh_for_4h']
     return result
 
 
