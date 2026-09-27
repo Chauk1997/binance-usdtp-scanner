@@ -141,11 +141,12 @@ def test_zero_prior_volume_and_unaligned_history():
 
 
 @pytest.mark.parametrize('delayed_forever',[False,True])
-def test_pipeline_retries_delayed_visibility_without_partial_publish(monkeypatch,delayed_forever):
+@pytest.mark.parametrize('delayed_tf',['1h','4h','1d'])
+def test_pipeline_retries_delayed_visibility_without_partial_publish(monkeypatch,delayed_forever,delayed_tf):
     from test_strategy_latest import NOW
     frames={tf:frame(tf=tf,rise=.01).to_dict('records') for tf in f.DURATIONS}
     attempts=[];waits=[]
-    def current(tf):return tf!='1h' or (len(attempts)>=2 and not delayed_forever)
+    def current(tf):return tf!=delayed_tf or (len(attempts)>=2 and not delayed_forever)
     async def update(tf):attempts.append(tf);return {'status':'complete'}
     async def universe(*args):return ['BTCUSDT'],{'total':1}
     async def sleep(seconds):waits.append(seconds)
@@ -157,11 +158,13 @@ def test_pipeline_retries_delayed_visibility_without_partial_publish(monkeypatch
     token=f.SCAN_TIME.set(NOW)
     try:result=asyncio.run(scanner_latest.build(api))
     finally:f.SCAN_TIME.reset(token)
-    assert attempts==['1h']*(4 if delayed_forever else 2)
+    assert attempts==[delayed_tf]*(4 if delayed_forever else 2)
     assert waits==([1,2,4] if delayed_forever else [1])
     if delayed_forever:
         assert result['status']=='stopped' and 'feed' not in result
-        assert result['missing_symbols']['1h']==['BTCUSDT']
+        assert result['missing_symbols'][delayed_tf]==['BTCUSDT']
+        audit=result['candle_audit']['BTCUSDT'][delayed_tf]
+        assert audit['expected']==audit['available'] and audit['scan'] is None
     else:assert result['status']=='complete'
 
 
