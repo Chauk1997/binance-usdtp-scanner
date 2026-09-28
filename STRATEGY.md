@@ -1,3 +1,5 @@
+> 2026-09-28 增補：排序、序列品質、1D 備援及資金窗口以 [V5.11 Structure First 增補](STRUCTURE_SEQUENCE_20260928.md) 為準；以下其餘規則保留。
+
 > 最新正式規格見 [CONFIRMED_20260927.md](CONFIRMED_20260927.md)。下文為歷史稽核；其中5秒排程與Direct CVD要求已被60秒啟動及CVD Proxy取代。
 
 # 2026-09-27 收盤 K 稽核修正

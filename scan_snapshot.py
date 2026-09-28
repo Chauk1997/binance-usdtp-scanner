@@ -65,6 +65,10 @@ class ScanSnapshot:
             for tf in ('1h', '4h'):
                 if not checks['fresh_for_' + tf]:
                     visible[tf] = {**feed.get(tf, {}), 'candidates': [], 'entry': []}
+            if 'reserve' in feed:
+                visible['reserve']={tf:{**board,'candidates':board.get('candidates',[])[:10] if checks['fresh_for_'+tf] else []} for tf,board in feed['reserve'].items()}
+            if 'intersection' in feed:
+                visible['intersection']=sorted({r['symbol'] for r in visible['1h']['candidates']} & {r['symbol'] for r in visible['4h']['candidates']})
             if not checks['feed_ready']:
                 visible['special'] = {'formal': [], 'approaching': [], 'status': 'pending' if checks['pending'] else 'stale'}
                 visible['market_state'] = {'triggered': False, 'status': 'pending' if checks['pending'] else 'stale'}

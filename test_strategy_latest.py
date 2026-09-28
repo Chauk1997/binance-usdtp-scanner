@@ -79,10 +79,10 @@ def bear_frame(tf='4h'):
     return d
 
 
-def test_background_veto_primary_not_daily_for_1h():
+def test_daily_complete_bear_veto_for_1h():
     frames={'1h':launch(frame()),'4h':frame(tf='4h',rise=.01),'1d':bear_frame('1d')}
     row,reason=s.qualify('X','1h',frames)
-    assert row and not reason
+    assert row is None and reason=='daily_bearish_divergence'
     frames['4h']=bear_frame()
     assert s.qualify('X','1h',frames)[0] is None
     frames['4h']=launch(frame(tf='4h'))

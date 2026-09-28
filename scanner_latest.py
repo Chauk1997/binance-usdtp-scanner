@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import httpx
 import strategy_latest as strategy
 from cvd_proxy import calculate_cvd_proxy
+from capital_sequence import capital_sequence, capital_score
 from scan_freshness import scan_now_ms, expected_bar, AVAILABILITY_DELAY_MS, latest_closed
 
 
@@ -103,7 +104,13 @@ async def fetch_auxiliary(api,client,symbol,tf,cutoff):
         await asyncio.sleep(.35)
     result=parse_auxiliary(data,tf,cutoff)
     result['errors'].update(errors)
-    result['cvd_proxy']=calculate_cvd_proxy(api.read_json(api.cache_file(symbol,tf)),result['window_start'],result['window_end'])
+    result['capital_sequence']=capital_sequence(data.get('oi'),api.read_json(api.cache_file(symbol,tf)),tf,result['window_end'])
+    result['oi_delta_1bar_pct']=result['oi_delta_pct']
+    result['oi_delta_pct']=result['capital_sequence']['windows']['6']['oi_delta_pct']
+    if result['oi_delta_pct'] is None and 'oi_delta_pct' not in result['missing_fields']:
+        result['missing_fields'].append('oi_delta_pct')
+    result['window_start']=result['window_end']-6*{'1h':3600000,'4h':14400000}[tf]
+    result['cvd_proxy']=result['capital_sequence']['windows']['6']['cvd_proxy']
     if result['cvd_proxy']['reliable']:
         result['missing_fields'].remove('cvd_proxy')
         result['status']='partial' if result['missing_fields'] else 'complete'
@@ -167,19 +174,21 @@ async def build(api):
             return dict(status='stopped',stage='closed_candle_coverage',coverage=coverage,
                         missing_symbols={tf:c['missing'] for tf,c in coverage.items()},diagnostics=diagnostics,
                         candle_audit=candle_audit, failure_kind='data_unavailable_or_stale')
-        pools={'1h':[],'4h':[]};special_formal=[];approaching=[]
+        pools={'1h':[],'4h':[]};reserves={'1h':[],'4h':[]};special_formal=[];approaching=[]
         btc=frames.get('BTCUSDT',{})
         # Scan every symbol before querying any auxiliary endpoint.
         for symbol in symbols:
             for tf in pools:
                 row,reason=strategy.qualify(symbol,tf,frames[symbol],btc.get(tf))
-                if row: pools[tf].append(row)
+                if row: (reserves if row.get('pool')=='reserve' else pools)[tf].append(row)
                 else: diagnostics[symbol][tf]=reason
             item=strategy.special(symbol,frames[symbol])
             if item:
                 (special_formal if item['status']=='formal' else approaching).append(item)
         finalists={tf:enrichment_frontier(rows) for tf,rows in pools.items()}
+        reserve_finalists={tf:enrichment_frontier(rows) for tf,rows in reserves.items()}
         requests={(r['symbol'],tf) for tf,rows in finalists.items() for r in rows}
+        requests.update((r['symbol'],tf) for tf,rows in reserve_finalists.items() for r in rows)
         requests.update((r['symbol'],'1h') for r in special_formal)
         auxiliary={}
         gate=asyncio.Semaphore(3)
@@ -187,11 +196,12 @@ async def build(api):
             async with gate:
                 auxiliary[symbol,tf]=await fetch_auxiliary(api,client,symbol,tf,cutoff)
         await asyncio.gather(*(enrich(symbol,tf) for symbol,tf in sorted(requests)))
-        for tf,rows in finalists.items():
+        for tf,rows in list(finalists.items())+list(reserve_finalists.items()):
             for row in rows:
                 row['auxiliary']=auxiliary[row['symbol'],tf]
                 score,warnings=strategy.auxiliary_score(row['auxiliary'])
-                row['ranking_key'].append(score);row['warnings']=warnings
+                capital,capital_warnings=capital_score(row['auxiliary'].get('capital_sequence',{}))
+                row['ranking_key'].extend([capital,score]);row['warnings']=capital_warnings+warnings
             rows.sort(key=lambda r:r['symbol'])
             rows.sort(key=lambda r:r['ranking_key'],reverse=True)
         for row in special_formal:
@@ -206,7 +216,10 @@ async def build(api):
                   universe=universe_info,universe_total=len(symbols),scanned=len(symbols),
                   excluded=len(universe_info.get('excluded',[])),missing=0,
                   coverage=coverage,diagnostics=diagnostics,candle_audit=candle_audit,
-                  special={'formal':special_formal,'approaching':approaching},
+                  special={'formal':special_formal[:10],'approaching':approaching[:10]},
+                  reserve={tf:dict(candidate_count=len(reserves[tf]),candidates=rows[:10]) for tf,rows in reserve_finalists.items()},
+                  implementation_revision='structure-sequence-20260928',
+                  intersection=sorted({r['symbol'] for r in boards['1h']} & {r['symbol'] for r in boards['4h']}),
                   market_state=strategy.market_warning(boards),
                   clock_source='Binance /fapi/v1/time + monotonic elapsed',
                   scan_cutoff_ms=cutoff, availability_delay_ms=AVAILABILITY_DELAY_MS,

@@ -1,3 +1,5 @@
+> 2026-09-28 增補：排序、序列品質、1D 備援及資金窗口以 [V5.11 Structure First 增補](STRUCTURE_SEQUENCE_20260928.md) 為準；以下其餘規則保留。
+
 # 2026-09-27 最終施工規格變更
 
 基準為已部署 9753fd0；以本文件覆蓋 STRATEGY.md / CODE_AUDIT.md 中舊有 5 秒啟動與 Direct CVD 敘述。既有 API、cache、retry、MCP、部署設定維持；舊策略路由保持停用。

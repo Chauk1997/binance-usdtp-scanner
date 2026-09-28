@@ -11,10 +11,16 @@ import pandas as pd
 from scan_freshness import DURATIONS, expected_bar
 
 from scanner_contract import VERSION
+from structure_sequence import features, daily_classify
 MA = ['ema15', 'sma30', 'sma45']
 STAGES = ['1D多頭', '4H第一型Key K', '4H回補均線／盤整', '1H盤整／壓縮', '新的1H第一型Key K']
-POLICY = ['higher_background', 'ma_structure', 'compression', 'key_quality',
-          'ma_pull', 'freshness', 'relative_strength', 'auxiliary']
+POLICY = ['4h_hard_filter', '1h_structure_quality', 'compression_reexpansion',
+          'daily_conditional_background', '4h_continuation', 'key_quality_stage',
+          'upside_space', 'relative_strength', 'capital_confirmation', 'auxiliary']
+POLICY_4H = ['1d_hard_filter', 'daily_conditional_background', '4h_structure_quality',
+             'compression_reexpansion', 'key_quality_stage', 'upside_space',
+             'relative_strength', 'capital_confirmation', 'auxiliary']
+
 
 @dataclass(frozen=True)
 class Config:
@@ -144,7 +150,7 @@ def key_at(df, i):
     quality = (body_quality + int(up) + (min(v/avg,10)/10 if avg else 1) +
                min(max(float(r.close/p.close-1)*100,0),10)/10 + .25*above - .5*penalty)
     return dict(index=i, open_time=int(r.open_time), close_time=int(r.close_time),
-                bars_ago=len(df)-1-i, volume=v, previous_volume=pv, preceding_mean24=avg,
+                bars_ago=len(df)-1-i, label='★ 本輪新關鍵K' if i==len(df)-1 else None, volume=v, previous_volume=pv, preceding_mean24=avg,
                 volume_vs_prev=v/pv if pv else None, volume_vs_ma24=v/avg if avg else None,
                 bullish=up, body_ratio=body/total if total else 0,
                 body_quality=body_quality, upper_wick=upper, lower_wick=lower,
@@ -200,13 +206,30 @@ def qualify(symbol, tf, frames, btc=None, cfg=CONFIG):
     relative=None
     if btc is not None and len(btc)>=7 and int(btc.close_time.iloc[-1])==int(op.close_time.iloc[-1]):
         relative=change-float(btc.close.iloc[-1]/btc.close.iloc[-7]-1)*100
-    daily=trend(frames.get('1d'),cfg)
-    # Daily is optional for 1H and cannot veto it or outrank primary 4H context.
-    context=bg['score']+(.1*daily['score'] if tf=='1h' and daily['valid'] else 0)
-    rank=[context,current['score'],event['compression']['score'],key['quality'],
-          sum(key['ma_pull_pct'].values()),-key['bars_ago'],relative if relative is not None else 0]
+    daily=daily_classify(frames.get('1d'),lambda d:trend(d,cfg))
+    if daily['pool']=='excluded': return None,'daily_bearish_divergence'
+    sequence=features(op)
+    higher=features(frames['4h']) if tf=='1h' else sequence
+    four_events=events(frames.get('4h'),'4h',cfg)
+    priority=bool(daily['classification']=='high_consolidation' and four_events
+                  and higher['pullback']['reexpansion']
+                  and higher['pullback']['trough_close_time'] <= four_events[-1]['key_candle']['close_time']
+                  and four_events[-1]['key_candle']['close_time'] < int(frames['4h'].close_time.iloc[-1]))
+    daily['conditional_priority']=priority
+    daily_rank=5 if priority else daily['priority']
+    comp=event['compression']['score']+sequence['reexpansion_quality']
+    stage='reexpansion' if sequence['pullback']['reexpansion'] else 'launch_or_continuation'
+    key_rank=key['quality']+int(stage=='reexpansion')*.25
+    rs=relative if relative is not None else 0
+    if tf=='1h':
+        rank=[1,sequence['structure_quality'],comp,daily_rank,higher['structure_quality'],key_rank,
+              sequence['upside_space']['score'],rs]
+    else:
+        rank=[1,daily_rank,sequence['structure_quality'],comp,key_rank,sequence['upside_space']['score'],rs]
+    key['label']='★ 本輪新關鍵K' if key['bars_ago']==0 else None
     return dict(symbol=symbol,timeframe=tf,**event,background=bg,daily_background=daily,
-                ranking_key=rank,ranking_policy=POLICY,relative_strength_pct=relative,
+                ranking_key=rank,ranking_policy=POLICY if tf=='1h' else POLICY_4H,relative_strength_pct=relative,
+                sequence=sequence,upside_space=sequence['upside_space'],structure_stage=stage,pool=daily['pool'],
                 technical_pass=True, reasons=[bg["state"], current["state"], *event["types"], "Key K >=2.2x previous AND >prior24 mean"],
                 candle={k:int(op.iloc[-1][k]) for k in ('open_time','close_time')},
                 btc_candle={k:int(btc.iloc[-1][k]) for k in ('open_time','close_time')} if btc is not None else None),None
