@@ -223,12 +223,12 @@ def qualify(symbol, tf, frames, btc=None, cfg=CONFIG):
     rs=relative if relative is not None else 0
     if tf=='1h':
         rank=[1,sequence['structure_quality'],comp,daily_rank,higher['structure_quality'],key_rank,
-              sequence['upside_space']['score'],rs]
+              sequence['upside_space']['ranking_key'],rs]
     else:
-        rank=[1,daily_rank,sequence['structure_quality'],comp,key_rank,sequence['upside_space']['score'],rs]
+        rank=[1,daily_rank,sequence['structure_quality'],comp,key_rank,sequence['upside_space']['ranking_key'],rs]
     key['label']='★ 本輪新關鍵K' if key['bars_ago']==0 else None
     return dict(symbol=symbol,timeframe=tf,**event,background=bg,daily_background=daily,
-                ranking_key=rank,ranking_policy=POLICY if tf=='1h' else POLICY_4H,relative_strength_pct=relative,
+                ranking_key_schema='lexicographic-open-space-v1',ranking_key=rank,ranking_policy=POLICY if tf=='1h' else POLICY_4H,relative_strength_pct=relative,
                 sequence=sequence,upside_space=sequence['upside_space'],structure_stage=stage,pool=daily['pool'],
                 technical_pass=True, reasons=[bg["state"], current["state"], *event["types"], "Key K >=2.2x previous AND >prior24 mean"],
                 candle={k:int(op.iloc[-1][k]) for k in ('open_time','close_time')},

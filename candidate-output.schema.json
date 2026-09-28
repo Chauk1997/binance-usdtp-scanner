@@ -1,0 +1,380 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scanner candidate sequence / open-space additions",
+  "type": "object",
+  "required": [
+    "sequence",
+    "upside_space",
+    "ranking_key",
+    "ranking_key_schema"
+  ],
+  "properties": {
+    "sequence": {
+      "type": "object",
+      "required": [
+        "trend_duration_bars",
+        "ema15_lead_bars",
+        "pullback_quality",
+        "ma_defense",
+        "swing_structure",
+        "reexpansion_quality",
+        "extension_atr",
+        "overextended"
+      ],
+      "properties": {
+        "trend_duration_bars": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ema15_lead_bars": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "pullback_quality": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "depth_atr",
+            "recovered_atr",
+            "structure_broken"
+          ],
+          "properties": {
+            "depth_atr": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "recovered_atr": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "structure_broken": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "ma_defense": {
+          "type": "object",
+          "required": [
+            "ema15",
+            "sma30",
+            "sma45",
+            "hl"
+          ],
+          "properties": {
+            "ema15": {
+              "type": "object",
+              "required": [
+                "close_breaches",
+                "wick_breaches",
+                "recovered",
+                "recovery_bars"
+              ],
+              "properties": {
+                "close_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "wick_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "recovered": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "recovery_bars": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "sma30": {
+              "type": "object",
+              "required": [
+                "close_breaches",
+                "wick_breaches",
+                "recovered",
+                "recovery_bars"
+              ],
+              "properties": {
+                "close_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "wick_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "recovered": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "recovery_bars": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "sma45": {
+              "type": "object",
+              "required": [
+                "close_breaches",
+                "wick_breaches",
+                "recovered",
+                "recovery_bars"
+              ],
+              "properties": {
+                "close_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "wick_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "recovered": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "recovery_bars": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "hl": {
+              "type": "object",
+              "required": [
+                "close_breaches",
+                "wick_breaches",
+                "recovered",
+                "recovery_bars"
+              ],
+              "properties": {
+                "close_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "wick_breaches": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "recovered": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "recovery_bars": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "swing_structure": {
+          "type": "object",
+          "required": [
+            "hh",
+            "hl",
+            "broken",
+            "status"
+          ],
+          "properties": {
+            "hh": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "hl": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "broken": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "status": {
+              "enum": [
+                "intact",
+                "weakening",
+                "broken",
+                null
+              ]
+            }
+          }
+        },
+        "reexpansion_quality": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "extension_atr": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "overextended": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "ranking_key_schema": {
+      "const": "lexicographic-open-space-v1"
+    },
+    "ranking_key": {
+      "type": "array"
+    },
+    "upside_space": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "open_space",
+            "remaining_atr",
+            "ranking_key",
+            "resistance_class"
+          ],
+          "properties": {
+            "status": {
+              "const": "no_resistance_in_96_bars"
+            },
+            "resistance_class": {
+              "const": "open_space"
+            },
+            "open_space": {
+              "const": 1
+            },
+            "remaining_atr": {
+              "type": "null"
+            },
+            "ranking_key": {
+              "const": [
+                1,
+                0
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "status",
+            "open_space",
+            "remaining_atr",
+            "ranking_key",
+            "resistance_class"
+          ],
+          "properties": {
+            "status": {
+              "const": "measured"
+            },
+            "resistance_class": {
+              "const": "measured"
+            },
+            "open_space": {
+              "const": 0
+            },
+            "remaining_atr": {
+              "type": "number",
+              "minimum": 0
+            },
+            "ranking_key": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "const": 0
+                },
+                {
+                  "type": "number",
+                  "minimum": 0
+                }
+              ],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      ]
+    }
+  }
+}

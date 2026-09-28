@@ -218,7 +218,7 @@ async def build(api):
                   coverage=coverage,diagnostics=diagnostics,candle_audit=candle_audit,
                   special={'formal':special_formal[:10],'approaching':approaching[:10]},
                   reserve={tf:dict(candidate_count=len(reserves[tf]),candidates=rows[:10]) for tf,rows in reserve_finalists.items()},
-                  implementation_revision='structure-sequence-20260928',
+                  implementation_revision='sequence-open-space-20260928',
                   intersection=sorted({r['symbol'] for r in boards['1h']} & {r['symbol'] for r in boards['4h']}),
                   market_state=strategy.market_warning(boards),
                   clock_source='Binance /fapi/v1/time + monotonic elapsed',

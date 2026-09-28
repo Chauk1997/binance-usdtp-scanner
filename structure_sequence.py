@@ -46,7 +46,26 @@ def features(df):
     if prior>d.close.iloc[-1]: resistances.append(prior)
     resistance=min(resistances) if resistances else None
     space=(resistance-float(d.close.iloc[-1]))/atr if resistance else None
-    return dict(atr=atr,trend_duration=duration,ema15_lead_duration=tail_count(lead),
+    # Output-only additions: keep the original structure quality calculation above.
+    defense['ema15']=dict(close_breaches=int((pull.close<pull.ema15).sum()),
+        wick_breaches=int((pull.low<pull.ema15).sum()), recovered=bool(d.close.iloc[-1]>=d.ema15.iloc[-1]),
+        recovery_bars=tail_count(pull.close>=pull.ema15))
+    # A confirmed higher low is known only once the second low's right bars close.
+    hl_price=float(d.low.iloc[lows[-1]]) if hl is True else None
+    hl_window=d.iloc[lows[-1]+2:] if hl_price is not None else None
+    defense['hl']=dict(price=hl_price,
+        close_breaches=int((hl_window.close<hl_price).sum()) if hl_price is not None else None,
+        wick_breaches=int((hl_window.low<hl_price).sum()) if hl_price is not None else None,
+        recovered=bool(d.close.iloc[-1]>=hl_price) if hl_price is not None else None,
+        recovery_bars=tail_count(hl_window.close>=hl_price) if hl_price is not None else None)
+    swing_structure=dict(hh=hh,hl=hl,broken=broken if lows else None,
+        status='broken' if broken else ('intact' if hh is True and hl is True else
+               'weakening' if hh is False or hl is False else None))
+    return dict(trend_duration_bars=duration,ema15_lead_bars=tail_count(lead),
+        pullback_quality=dict(depth_atr=depth,recovered_atr=float(d.close.iloc[-1]-d.low.iloc[trough])/atr,
+                              structure_broken=broken if lows else None),
+        swing_structure=swing_structure,extension_atr=extension,overextended=extension>3,
+        atr=atr,trend_duration=duration,ema15_lead_duration=tail_count(lead),
         duration_censored=duration==len(d),ma_defense=defense,
         swing=dict(hh=hh,hl=hl,broken=broken,confirmed_right_bars=2,
                    highs=[dict(price=float(d.high.iloc[i]),close_time=int(d.close_time.iloc[i])) for i in highs],
@@ -56,7 +75,10 @@ def features(df):
                       reexpansion_bars=tail_count(expands),overextension_atr=extension,structure_broken=broken),
         structure_quality=quality,reexpansion_quality=int(reexpand)+min(tail_count(expands),3)/3-max(0,extension-3),
         upside_space=dict(resistance=resistance,remaining_atr=space,status='measured' if resistance else 'no_resistance_in_96_bars',
-                          score=min(space,6) if space is not None else 0))
+                          resistance_class='measured' if resistance else 'open_space',
+                          open_space=0 if resistance else 1,
+                          ranking_key=[0,space] if resistance else [1,0],
+                          score=space))
 
 def daily_classify(df, trend):
     base=trend(df)

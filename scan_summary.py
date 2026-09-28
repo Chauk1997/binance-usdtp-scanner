@@ -25,5 +25,5 @@ def compact_scan_feed(feed):
         result['intersection']=sorted({r['symbol'] for r in result['1h']['candidates']} & {r['symbol'] for r in result['4h']['candidates']})
     for name in ('formal','approaching'):
         result['special'][name]=result['special'].get(name,[])[:10]
-    result['output_schema']='scanner-summary-v2'
+    result['output_schema']='scanner-summary-v3'
     return result
