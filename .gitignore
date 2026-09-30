@@ -33,3 +33,10 @@ main_v52_UNIFIED_WATCHLIST_LOCKED.py
 main_v53_COMPACT_LOCKED.py
 main_v54_CHATGPT_FEED_LOCKED.py
 main_resonance_LOCKED.py
+
+# Cloud migration runtime outputs
+.render-cache/
+.render-run-*/
+benchmark-output/
+render-benchmark.json
+render-scan-feed.json
