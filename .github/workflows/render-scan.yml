@@ -9,11 +9,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   benchmark:
-    if: github.event.repository.private == false
+    if: github.event.repository.private == false && github.ref == 'refs/heads/migration/free-benchmark'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      SCANNER_RENDER_URL: ${{ vars.SCANNER_RENDER_URL }}
+      SCANNER_RENDER_URL: ${{ vars.SCANNER_RENDER_URL || 'https://scanner-v54-free.onrender.com' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
