@@ -1,0 +1,25 @@
+name: Render Free manual benchmark
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: render-scanner
+  cancel-in-progress: false
+jobs:
+  benchmark:
+    if: github.event.repository.private == false && github.ref == 'refs/heads/migration/free-benchmark'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      SCANNER_RENDER_URL: ${{ vars.SCANNER_RENDER_URL || 'https://scanner-v54-free.onrender.com' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --no-cache-dir httpx==0.28.1
+      - name: Trigger and measure Render full-universe scan
+        run: python render_client.py
+      # No schedule, publication, artifact or cache until Render validation passes.
