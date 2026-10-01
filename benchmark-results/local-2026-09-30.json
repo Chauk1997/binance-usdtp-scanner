@@ -1,0 +1,208 @@
+{
+  "schema": "scanner-benchmark-v1",
+  "metadata": {
+    "git_sha": "5af34fcdf6c0a475215c52101101bb87cc554ed1",
+    "strategy_version": "V5.11_CONFIRMED_20260927_PROXY_PLUS1M",
+    "run_id": null,
+    "run_attempt": null,
+    "repository": null,
+    "event": null,
+    "started_at_utc": "2026-09-30T07:34:30.502245+00:00",
+    "python": "3.12.14",
+    "platform": "macOS-26.6.2-arm64-arm-64bit",
+    "cpu_count": 8,
+    "runner_os": null,
+    "runner_image": null,
+    "cache_mode": "cold"
+  },
+  "finished_at_utc": "2026-09-30T07:38:32.817964+00:00",
+  "scanner_wall_seconds": 242.39235070801806,
+  "cpu_user_seconds": 31.146321,
+  "cpu_system_seconds": 2.854963,
+  "peak_rss_kib": 376624.0,
+  "cache_bytes": 114736445,
+  "http_status_counts": {
+    "200": 1820
+  },
+  "transport_errors": {},
+  "endpoints": {
+    "/fapi/v1/time": {
+      "requests": 1,
+      "errors": 0,
+      "seconds": 0.09111637499881908,
+      "max_weight_1m": 1,
+      "retry_after": []
+    },
+    "/fapi/v1/exchangeInfo": {
+      "requests": 1,
+      "errors": 0,
+      "seconds": 0.09749945800285786,
+      "max_weight_1m": 2,
+      "retry_after": []
+    },
+    "/fapi/v1/klines": {
+      "requests": 1578,
+      "errors": 0,
+      "seconds": 99.66207564854994,
+      "max_weight_1m": 804,
+      "retry_after": []
+    },
+    "/futures/data/openInterestHist": {
+      "requests": 40,
+      "errors": 0,
+      "seconds": 2.374145419045817,
+      "max_weight_1m": 0,
+      "retry_after": []
+    },
+    "/futures/data/takerlongshortRatio": {
+      "requests": 40,
+      "errors": 0,
+      "seconds": 2.304513086739462,
+      "max_weight_1m": 0,
+      "retry_after": []
+    },
+    "/futures/data/topLongShortPositionRatio": {
+      "requests": 40,
+      "errors": 0,
+      "seconds": 2.2625845040311106,
+      "max_weight_1m": 0,
+      "retry_after": []
+    },
+    "/futures/data/topLongShortAccountRatio": {
+      "requests": 40,
+      "errors": 0,
+      "seconds": 2.2324194169486873,
+      "max_weight_1m": 0,
+      "retry_after": []
+    },
+    "/futures/data/globalLongShortAccountRatio": {
+      "requests": 40,
+      "errors": 0,
+      "seconds": 2.2434555380023085,
+      "max_weight_1m": 0,
+      "retry_after": []
+    },
+    "/fapi/v1/fundingRate": {
+      "requests": 40,
+      "errors": 0,
+      "seconds": 2.22025649913121,
+      "max_weight_1m": 0,
+      "retry_after": []
+    }
+  },
+  "scan_status": {
+    "status": "complete",
+    "started_at_utc": "2026-09-30T07:34:30.521137+00:00",
+    "finished_at_utc": "2026-09-30T07:38:32.817192+00:00",
+    "last_error": null,
+    "feed_ready": true,
+    "scan_complete": true,
+    "generated_at_utc": "2026-09-30T07:38:32.807825+00:00",
+    "age_seconds": 0.02489,
+    "freshness_timezone": "Asia/Taipei",
+    "stale_reasons": [],
+    "pending_reasons": [],
+    "publication_grace_ms": 150000,
+    "expected_closed_1h": {
+      "open_time": 1790748000000,
+      "close_time": 1790751599999
+    },
+    "latest_closed_1h_open_time": 1790748000000,
+    "latest_closed_1h_close_time": 1790751599999,
+    "expected_closed_4h": {
+      "open_time": 1790726400000,
+      "close_time": 1790740799999
+    },
+    "latest_closed_4h_open_time": 1790726400000,
+    "latest_closed_4h_close_time": 1790740799999,
+    "expected_closed_1d": {
+      "open_time": 1790640000000,
+      "close_time": 1790726399999
+    },
+    "latest_closed_1d_open_time": 1790640000000,
+    "latest_closed_1d_close_time": 1790726399999,
+    "fresh_for_1h": true,
+    "freshness_state_1h": "fresh",
+    "fresh_for_4h": true,
+    "freshness_state_4h": "fresh",
+    "fresh_for_1d": true,
+    "freshness_state_1d": "fresh",
+    "stale": false,
+    "pending": false,
+    "cache_mode": "completed_snapshot"
+  },
+  "scan_result_status": "complete",
+  "universe_total": 526,
+  "coverage": {
+    "1h": {
+      "complete": true,
+      "symbols": 526,
+      "scanned": 526,
+      "missing": []
+    },
+    "4h": {
+      "complete": true,
+      "symbols": 526,
+      "scanned": 526,
+      "missing": []
+    },
+    "1d": {
+      "complete": true,
+      "symbols": 526,
+      "scanned": 526,
+      "missing": []
+    }
+  },
+  "freshness": {
+    "latest_closed_1h_open_time": 1790748000000,
+    "latest_closed_1h_close_time": 1790751599999,
+    "latest_closed_4h_open_time": 1790726400000,
+    "latest_closed_4h_close_time": 1790740799999,
+    "latest_closed_1d_open_time": 1790640000000,
+    "latest_closed_1d_close_time": 1790726399999,
+    "expected_closed_1h": {
+      "open_time": 1790748000000,
+      "close_time": 1790751599999
+    },
+    "expected_closed_4h": {
+      "open_time": 1790726400000,
+      "close_time": 1790740799999
+    },
+    "expected_closed_1d": {
+      "open_time": 1790640000000,
+      "close_time": 1790726399999
+    },
+    "fresh_for_1h": true,
+    "fresh_for_4h": true,
+    "fresh_for_1d": true
+  },
+  "gate_passed": true,
+  "gate_reasons": [],
+  "feed_sha256": "e7c6f3f11a34f6c5b74fa3e13dbd3741b90a25f2efca9910b3394aa9e9017dd9",
+  "auxiliary_missing": {
+    "1h": {
+      "PHAUSDT": [],
+      "TWTUSDT": [],
+      "SOONUSDT": [],
+      "AXSUSDT": [],
+      "FOLKSUSDT": [],
+      "ZESTUSDT": [],
+      "ASTERUSDT": [],
+      "AWEUSDT": [],
+      "COMPUSDT": [],
+      "ARCUSDT": []
+    },
+    "4h": {
+      "ETHFIUSDT": [],
+      "MOVRUSDT": [],
+      "FLUIDUSDT": [],
+      "XVSUSDT": [],
+      "AWEUSDT": [],
+      "NIGHTUSDT": [],
+      "GRASSUSDT": [],
+      "XLMUSDT": [],
+      "ALGOUSDT": [],
+      "BTWUSDT": []
+    }
+  }
+}
