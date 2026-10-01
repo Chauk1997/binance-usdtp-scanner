@@ -1,10 +1,6 @@
 name: Scanner manual full-universe benchmark
 on:
   workflow_dispatch:
-  # Explicit bootstrap commit runs this once without enabling a schedule.
-  push:
-    branches: [migration/free-benchmark]
-    paths: [.github/workflows/benchmark.yml]
 permissions:
   contents: read
 concurrency:
@@ -25,7 +21,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install unchanged production dependencies
-        run: python -m pip install -r requirements.txt -r requirements-mcp.txt pytest
+        run: python -m pip install -r requirements-render.txt pytest
       - name: Strategy and infrastructure regression tests
         run: python -m pytest -q
       - name: Cold full Binance USDT perpetual universe benchmark
