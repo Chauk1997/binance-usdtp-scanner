@@ -51,3 +51,20 @@ def test_same_run_is_idempotent_and_other_run_cannot_overlap(monkeypatch):
         finally:
             pending.cancel()
     asyncio.run(scenario())
+
+
+def test_new_run_obeys_upstream_cooldown(monkeypatch):
+    import asyncio
+    async def scenario():
+        async def auth(_): return dict(run_id='new', run_attempt='1')
+        monkeypatch.setattr(service, 'authorize', auth)
+        monkeypatch.setattr(service, 'state', dict(status='failed', run_id='old:1'))
+        monkeypatch.setattr(service, 'task', None)
+        monkeypatch.setattr(service, 'retry_not_before_epoch', service.time.time() + 60)
+        with pytest.raises(service.HTTPException) as exc:
+            await service.start('unused')
+        assert exc.value.status_code == 429
+        assert 0 < int(exc.value.headers['Retry-After']) <= 60
+        assert service.state['run_id'] == 'old:1'
+        assert service.task is None
+    asyncio.run(scenario())

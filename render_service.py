@@ -2,6 +2,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -25,6 +26,7 @@ WORKFLOW = REPOSITORY + '/.github/workflows/render-scan.yml@' + ALLOWED_REF
 JWKS = jwt.PyJWKClient('https://token.actions.githubusercontent.com/.well-known/jwks')
 state = {'status': 'idle', 'run_id': None}
 task = None
+retry_not_before_epoch = 0.0
 snapshot = ScanSnapshot(ROOT / '.render-cache' / 'scan_feed.json')
 mcp = MCPServer(name='scanner-v54-mcp', version=VERSION)
 mcp_app = mcp.streamable_http_app(stateless_http=True, json_response=True, host='0.0.0.0')
@@ -111,7 +113,7 @@ def summary():
 
 
 async def execute(claims):
-    global snapshot, state
+    global snapshot, state, retry_not_before_epoch
     process = None
     try:
         with tempfile.TemporaryDirectory(prefix='.render-run-', dir=ROOT) as directory:
@@ -128,6 +130,17 @@ async def execute(claims):
                 state.update(status='failed', reason='Scanner stopped without a report', exit_code=process.returncode)
                 return
             report = json.loads(report_path.read_text())
+            # Keep upstream cooldown across scan subprocesses in this service.
+            for endpoint in report.get('endpoints', {}).values():
+                for value in endpoint.get('retry_after', []):
+                    try:
+                        seconds = float(value)
+                        if math.isfinite(seconds) and seconds > 0:
+                            retry_not_before_epoch = max(retry_not_before_epoch, time.time() + seconds)
+                    except (TypeError, ValueError):
+                        pass
+            if retry_not_before_epoch > time.time():
+                report['retry_not_before_epoch'] = retry_not_before_epoch
             report['render_resources'] = {}
             for name in ('memory.peak', 'memory.max', 'cpu.max'):
                 metric = Path('/sys/fs/cgroup') / name
@@ -164,6 +177,9 @@ async def start(authorization: str | None = Header(default=None)):
         return {'status': state['status'], 'run_id': run_id}
     if task and not task.done():
         raise HTTPException(409, 'Another scan is running')
+    if retry_not_before_epoch > time.time():
+        raise HTTPException(429, 'Binance cooldown is still active',
+                            headers={'Retry-After': str(math.ceil(retry_not_before_epoch - time.time()))})
     state = {'status': 'running', 'run_id': run_id, 'started_at_epoch': time.time()}
     task = asyncio.create_task(execute(claims))
     return state
