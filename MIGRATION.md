@@ -10,8 +10,8 @@ selection, ranking, cutoff, throttling and publication code is unchanged.
 ## Benchmark
 
 Run `.github/workflows/benchmark.yml` manually after it is on the default branch.
-The initial `migration/free-benchmark` workflow commit also triggers one bootstrap
-run; there is no hourly schedule. Uses public-repository standard `ubuntu-latest`,
+The initial bootstrap has completed and its push trigger has been removed;
+there is no hourly schedule. Uses public-repository standard `ubuntu-latest`,
 Python 3.12 and unchanged production dependency pins. No artifact uploads, Actions
 cache, LFS, paid runners or external resources are created.
 
@@ -81,3 +81,9 @@ Cost references (verified 2026-09-30):
 
 Free service terms and availability can change. This implementation creates no
 paid resource and must stop rather than switch to a billable fallback.
+
+## Latest continuation
+
+See `RENDER_DEPLOY.md` for the 2026-10-01 deployment, verified Render $0 billing,
+and run 36879151585 HTTP 418 blocker with its required cooldown deadline.
+The full cloud production gate still has not passed.

@@ -40,5 +40,27 @@ must fit 512 MB. GitHub's own East US runner previously received Binance HTTP 45
 Render may also be restricted or may suspend high outbound API traffic. If the
 free service fails, stop and report; do not upgrade or reduce the strategy's pool.
 
-Status: deployment and Render benchmark pending. Hourly `:01`, durable feed
-publication and production MCP/plugin cutover are not yet enabled.
+## Verified 2026-10-01
+
+Deployment `dep-dav73uk1nsns738vf670` served commit
+`9223b5927c818b4f498a6c27909f2fd3fb64d52b`; public `/health` confirmed this SHA.
+The dashboard confirms Free/Singapore, a Hobby workspace, one service, no card on
+file, $0.00 month-to-date and projected October charges, and a $0 September invoice.
+These checks cover this Render workspace, not any old Railway subscription.
+
+Manual Actions run [36879151585](https://github.com/Chauk1997/binance-usdtp-scanner/actions/runs/36879151585)
+failed at the first `/fapi/v1/time` request with HTTP 418 and Retry-After 73494
+seconds. The scanner invocation was 0.772592 seconds, NOT a full-scan runtime.
+Universe, coverage, freshness and complete-feed integrity remain unmeasured on
+Render. The report is `benchmark-results/2026-10-01-36879151585.json`.
+
+Do not retry before **2026-10-02 11:13:02 UTC / 19:13:02 Asia/Taipei**. Expiry is
+not proof that the upstream restriction has cleared. The service enforces the
+reported cooldown across subprocesses while running; it is not persistent across
+service restarts, so operators must preserve this deadline and not redeploy or
+restart to evade it. Do not repeatedly retry or enable an hourly failing scan.
+
+The corrected manual benchmark installs the Render test dependencies and has no
+push bootstrap. The updated revision passed 247 local regression tests.
+Hourly `:01`, durable feed publication and production MCP/plugin cutover are not
+yet enabled. No paid resource was added.
