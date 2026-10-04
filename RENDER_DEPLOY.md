@@ -64,3 +64,23 @@ The corrected manual benchmark installs the Render test dependencies and has no
 push bootstrap. The updated revision passed 247 local regression tests.
 Hourly `:01`, durable feed publication and production MCP/plugin cutover are not
 yet enabled. No paid resource was added.
+
+
+## Cold retry 2026-10-04: still blocked
+
+Run 36879151585 attempt 2, job 111440259569, retried the same deployed 9223b59
+only after the previous cooldown had expired. The first /fapi/v1/time request
+again returned HTTP 418, now with Retry-After 78675 seconds. Scanner invocation
+was 0.875676 seconds; no universe or complete feed was obtained. Evidence:
+`benchmark-results/2026-10-04-36879151585-attempt2.json`.
+
+The new conservative not-before deadline is **2026-10-05 10:44:59 UTC /
+18:44:59 Asia/Taipei**. This is an upstream cooldown, not a promised recovery time.
+Do not automatically repeat retries, restart to evade the cooldown, enable
+production, or upgrade to a paid plan. The current GitHub+Render execution path
+has not met the full-universe gate. No resource or billing plan changed today.
+
+A local scanning host with GitHub persistence is a possible architecture change,
+based on the earlier successful local benchmark, but requires user acceptance
+of an always-on local computer, network availability and electricity costs. No
+local daemon, self-hosted runner or schedule has been installed.
