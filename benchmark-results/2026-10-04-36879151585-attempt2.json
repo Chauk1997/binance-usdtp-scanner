@@ -1,0 +1,113 @@
+{
+  "schema": "scanner-benchmark-v1",
+  "metadata": {
+    "git_sha": "9223b5927c818b4f498a6c27909f2fd3fb64d52b",
+    "strategy_version": "V5.11_CONFIRMED_20260927_PROXY_PLUS1M",
+    "run_id": "36879151585",
+    "run_attempt": "2",
+    "repository": "Chauk1997/binance-usdtp-scanner",
+    "event": "workflow_dispatch",
+    "started_at_utc": "2026-10-04T12:53:40.731880+00:00",
+    "python": "3.12.14",
+    "platform": "Linux-7.0.0-1009-aws-x86_64-with-glibc2.36",
+    "cpu_count": 8,
+    "runner_os": null,
+    "runner_image": null,
+    "cache_mode": "cold"
+  },
+  "finished_at_utc": "2026-10-04T12:53:41.582032+00:00",
+  "scanner_wall_seconds": 0.8756759980024071,
+  "cpu_user_seconds": 2.034786,
+  "cpu_system_seconds": 0.276808,
+  "peak_rss_kib": 105244,
+  "cache_bytes": 0,
+  "http_status_counts": {
+    "418": 1
+  },
+  "transport_errors": {},
+  "endpoints": {
+    "/fapi/v1/time": {
+      "requests": 1,
+      "errors": 1,
+      "seconds": 0.1799239169995417,
+      "max_weight_1m": 0,
+      "retry_after": [
+        "78675"
+      ]
+    }
+  },
+  "scan_status": {
+    "status": "stopped",
+    "started_at_utc": "2026-10-04T12:53:40.797743+00:00",
+    "finished_at_utc": "2026-10-04T12:53:41.581803+00:00",
+    "last_error": {
+      "status": "stopped",
+      "stage": "server_clock",
+      "reason": "Binance server time unavailable",
+      "unknown_symbols": null,
+      "incomplete_intervals": null,
+      "missing_symbols": null
+    },
+    "feed_ready": false,
+    "scan_complete": false,
+    "generated_at_utc": null,
+    "age_seconds": null,
+    "freshness_timezone": "Asia/Taipei",
+    "stale_reasons": [
+      "1h: snapshot does not cover expected closed bar",
+      "4h: snapshot does not cover expected closed bar"
+    ],
+    "pending_reasons": [],
+    "publication_grace_ms": 150000,
+    "expected_closed_1h": {
+      "open_time": 1791111600000,
+      "close_time": 1791115199999
+    },
+    "latest_closed_1h_open_time": null,
+    "latest_closed_1h_close_time": null,
+    "expected_closed_4h": {
+      "open_time": 1791100800000,
+      "close_time": 1791115199999
+    },
+    "latest_closed_4h_open_time": null,
+    "latest_closed_4h_close_time": null,
+    "expected_closed_1d": {
+      "open_time": 1790985600000,
+      "close_time": 1791071999999
+    },
+    "latest_closed_1d_open_time": null,
+    "latest_closed_1d_close_time": null,
+    "fresh_for_1h": false,
+    "freshness_state_1h": "stale",
+    "fresh_for_4h": false,
+    "freshness_state_4h": "stale",
+    "fresh_for_1d": false,
+    "freshness_state_1d": "stale",
+    "stale": true,
+    "pending": false,
+    "cache_mode": "completed_snapshot"
+  },
+  "scan_result_status": "stopped",
+  "universe_total": null,
+  "coverage": null,
+  "freshness": {},
+  "gate_passed": false,
+  "gate_reasons": [
+    "no fresh completed feed",
+    "full universe not proven",
+    "1h coverage incomplete",
+    "1h stale or unavailable",
+    "4h coverage incomplete",
+    "4h stale or unavailable",
+    "1d coverage incomplete",
+    "1d stale or unavailable",
+    "feed structure incomplete",
+    "upstream rate limited"
+  ],
+  "retry_not_before_epoch": 1791197098.096628,
+  "render_resources": {
+    "memory.peak": "283275264",
+    "memory.max": "536870912",
+    "cpu.max": "15000 100000"
+  }
+}

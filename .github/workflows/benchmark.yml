@@ -1,0 +1,33 @@
+name: Scanner manual full-universe benchmark
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: scanner-benchmark
+  cancel-in-progress: false
+jobs:
+  benchmark:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      SCANNER_SCHEDULER_ENABLED: '0'
+      PYTHONUNBUFFERED: '1'
+      PIP_NO_CACHE_DIR: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install unchanged production dependencies
+        run: python -m pip install -r requirements-render.txt pytest
+      - name: Strategy and infrastructure regression tests
+        run: python -m pytest -q
+      - name: Cold full Binance USDT perpetual universe benchmark
+        run: /usr/bin/time -v python benchmark.py
+      - name: Resource evidence
+        if: always()
+        run: |
+          { echo '### Runner resources'; echo '```'; lscpu; free -m; df -h .; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      # No Actions artifacts/caches: avoids metered storage entirely.
