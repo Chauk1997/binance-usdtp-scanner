@@ -1,3 +1,7 @@
+# Phase16 test implementation (2026-10-08)
+
+The default scanner now uses the causal Phase16 strategy. See [PHASE16.md](PHASE16.md) for approved test defaults, data requirements and state semantics. Set `SCANNER_STRATEGY=legacy` to retain the prior strategy. Cloud deployment is unverified; see [deploy/README.md](deploy/README.md).
+
 # Active strategy: 2026-09-26 confirmed scan logic
 
 The production scan pipeline is now `V5.9_CONFIRMED_20260926_VOLUME_CVD`. See [STRATEGY.md](STRATEGY.md) for the current rules, explicit pattern thresholds, API limitations and migration contract. All material below is historical implementation documentation; it does not define the active strategy. The old intersection/entry endpoints are retired.

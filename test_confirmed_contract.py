@@ -34,7 +34,7 @@ def test_six_passes_stay_six_and_audit_excludes_forming(monkeypatch):
     async def aux(api,client,symbol,tf,cutoff):seen.append(symbol);return {}
     monkeypatch.setattr(runner,'universe',universe);monkeypatch.setattr(runner,'fetch_auxiliary',aux)
     token=SCAN_TIME.set(NOW+60000)
-    try: result=asyncio.run(runner.build(api))
+    try: result=asyncio.run(runner.build_legacy(api))
     finally: SCAN_TIME.reset(token)
     feed=result['feed']
     assert 'FAILUSDT' not in seen

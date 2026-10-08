@@ -200,7 +200,7 @@ def test_full_pipeline_technical_before_auxiliary(monkeypatch):
         return {'oi_delta_pct':-10,'taker_buy_sell_ratio':.1,'cvd_proxy':{'value':None}}
     monkeypatch.setattr(runner,'universe',universe);monkeypatch.setattr(runner,'fetch_auxiliary',aux)
     token=SCAN_TIME.set(NOW)
-    try: result=asyncio.run(runner.build(api))
+    try: result=asyncio.run(runner.build_legacy(api))
     finally: SCAN_TIME.reset(token)
     assert result['status']=='complete'
     assert queried and all(symbol!='BADUSDT' for symbol,tf in queried)

@@ -10,7 +10,7 @@ mcp = MCPServer(
     description="MCP server for Binance USDT perpetual scanner V5.4",
 )
 
-SCANNER_BASE_URL = "https://binance-usdtp-scanner-production.up.railway.app"
+SCANNER_BASE_URL = os.environ.get("SCANNER_BASE_URL", "https://binance-usdtp-scanner-production.up.railway.app").rstrip("/")
 
 
 @mcp.tool(annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False))

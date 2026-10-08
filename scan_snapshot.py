@@ -15,8 +15,9 @@ def utc_now():
 
 
 class ScanSnapshot:
-    def __init__(self, path):
+    def __init__(self, path, strategy_version=None):
         self.path = Path(path)
+        self.strategy_version = strategy_version or VERSION
         self._lock = Lock()
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="full-scan")
         self._feed = None
@@ -28,7 +29,7 @@ class ScanSnapshot:
             if (cached.get("status") == "complete"
                     and cached.get("scanner") == "V5.4_CHATGPT_FEED"
                     and cached.get("generated_at_utc")
-                    and cached.get("strategy") == VERSION
+                    and cached.get("strategy") == self.strategy_version
                     and all(key in cached for key in ("1h", "4h", "special"))):
                 self._feed = cached
                 self._state["status"] = "complete"
@@ -61,6 +62,10 @@ class ScanSnapshot:
         if feed is not None:
             checks = freshness(feed)
             # Keep timing/coverage evidence, but never publish a stale 1H board.
+            if feed.get("strategy") == "SCANNER_V5.4_PHASE16":
+                from phase16_runner import visible as phase16_visible
+                from scan_freshness import live_now_ms
+                feed = phase16_visible(feed, live_now_ms())
             visible = dict(feed)
             for tf in ('1h', '4h'):
                 if not checks['fresh_for_' + tf]:
