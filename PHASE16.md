@@ -22,3 +22,5 @@ SQLite stores historical signals, structures, runs, early/rejected research, not
 Deployment remains unverified. Parameter tuning and replay backtesting must precede any performance claim.
 
 Override only the documented implementation defaults with SCANNER_PHASE16_DEFAULTS containing a JSON object (Config field names). Fixed adopted technical thresholds are not overridden here. A parameter fingerprint is persisted; changing defaults requires a separate SCANNER_DATA_DIR so historical state cannot silently mix versions.
+
+Multiple nonconsecutive formal signals of the same asset are all retained, while Top10 represents each asset once using its highest-ranked active event; complete ties use the earliest key. This is a presentation choice, not a new qualification gate. Resonance labels use all valid active events, including those outside Top10. Each timeframe publishes its original ranking policy (normal or BTC special) so an hourly mode change does not imply a re-ranked frozen4H board. Each scan audit retains the entire feed and ranked candidate pool, not only counts. Auxiliary requests have concurrency3 and share the existing Binance rate limiter.

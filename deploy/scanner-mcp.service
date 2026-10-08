@@ -1,0 +1,21 @@
+[Unit]
+Description=Scanner read-only MCP gateway
+After=network-online.target scanner.service
+Wants=network-online.target scanner.service
+
+[Service]
+Type=simple
+User=scanner
+WorkingDirectory=/opt/scanner
+Environment=SCANNER_BASE_URL=http://127.0.0.1:8000
+Environment=PORT=8080
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/scanner/.venv/bin/python mcp_server.py
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

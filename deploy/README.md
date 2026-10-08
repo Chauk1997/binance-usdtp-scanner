@@ -15,3 +15,5 @@ MCP網址透過 SCANNER_BASE_URL 設定；保留既有Railway網址為legacy預�
 
 驗收：完整24小時保存24個1H邊界、6個4H邊界（不把retry算新輪），重啟後signal_id/key_time不變，4H非收盤時間ranking不變，超24h不展示。
 記錄每輪耗時／缺失／HTTP狀態／費用額度；Oracle容量及閒置回收仍是營運風險。沒有完成這些驗收不能聲稱部署成功。
+
+要保留MCP功能：同一個venv另外安裝 requirements-mcp.txt，啟用 scanner-mcp.service；它透過127.0.0.1:8000讀取Phase16摘要，完全不必依賴Railway。8080留在防火牆後，公開端點用免費Nginx與TLS反向代理到MCP。免費子網域候選為DuckDNS；另一選項為Let's Encrypt的公開IP憑證（約6天有效，須支援shortlived的ACME客戶端與自動續期）。這些帳戶、DNS、憑證與ChatGPT插件URL尚未配置或測試。

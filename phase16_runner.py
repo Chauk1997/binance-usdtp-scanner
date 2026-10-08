@@ -4,6 +4,7 @@ import time
 import os
 from copy import deepcopy
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 import httpx
 import phase16 as strategy
@@ -42,6 +43,20 @@ def freshness(feed, now):
     checks['feed_ready']=all(checks.values())
     checks['stale']=not checks['feed_ready'];checks['pending']=False
     return checks
+
+
+def asset_candidates(rows):
+    """Keep all signal histories, but represent each asset once on Top10.
+
+    Auxiliary is identical for all events of the same asset/timeframe/cutoff;
+    its strongest technical event therefore dominates before enrichment.
+    """
+    ranked=sorted(rows,key=lambda r:(r['key_time'],r['signal_id']))
+    ranked.sort(key=lambda r:r['ranking_key'],reverse=True)
+    selected={}
+    for row in ranked:
+        selected.setdefault(row['symbol'],row)
+    return list(selected.values())
 
 
 async def build(api):
@@ -122,6 +137,9 @@ async def build(api):
                 for tf,rows in pools.items():
                     for row in rows:
                         symbol=row['symbol'];d=frames[symbol][tf];last=d.iloc[-1]
+                        event_time=datetime.fromtimestamp(row['key_time']/1000,timezone.utc)
+                        row['key_time_utc']=event_time.isoformat()
+                        row['key_time_taipei']=event_time.astimezone(ZoneInfo('Asia/Taipei')).isoformat()
                         # Special mode compares every coin to the same latest BTC
                         # 1H return, including coins ranked on the 4H board.
                         coin=frames[symbol]['1h'];sync=None
@@ -135,28 +153,34 @@ async def build(api):
                         # Existing special pattern remains label-only. No extra pool.
                         item=legacy_special(symbol,frames[symbol])
                         if item and item.get('status')=='formal':row['tags'].append('MUBARAK（既有辨識）')
-                    rows.sort(key=lambda r:r['signal_id'])
-                    rows.sort(key=lambda r:r['ranking_key'],reverse=True)
+                    active_signal_count=len(rows)
+                    rows=asset_candidates(rows)
+                    pools[tf]=rows
                     # Enrich all ties at the boundary, since only the last factor
                     # can change ordering. No volume-multiple bonus.
                     boundary=rows[9]['ranking_key'][:-1] if len(rows)>10 else None
                     frontier=[r for r in rows if boundary is None or r['ranking_key'][:-1]>=boundary]
-                    for row in frontier:
-                        aux=await fetch_auxiliary(api,client,row['symbol'],tf,cutoff)
-                        score,_=auxiliary_score(aux)
-                        available=any(aux.get(k) is not None for k in ('oi_delta_pct','taker_buy_sell_ratio','funding_rate'))
-                        row['auxiliary']=aux
-                        row['ranking_key'][-1]=strategy.known(score if available else None)
+                    gate=asyncio.Semaphore(3)
+                    async def enrich(row):
+                        async with gate:
+                            aux=await fetch_auxiliary(api,client,row['symbol'],tf,cutoff)
+                            score,_=auxiliary_score(aux)
+                            available=any(aux.get(k) is not None for k in ('oi_delta_pct','taker_buy_sell_ratio','funding_rate'))
+                            row['auxiliary']=aux
+                            row['ranking_key'][-1]=strategy.known(score if available else None)
+                    await asyncio.gather(*(enrich(row) for row in frontier))
                     rows.sort(key=lambda r:r['ranking_key'],reverse=True)
                     board=dict(boundary_ms=cutoff//DURATIONS[tf]*DURATIONS[tf],scan_cutoff_ms=cutoff,
                                scan_time_utc=datetime.fromtimestamp(cutoff/1000,timezone.utc).isoformat(),
-                               candidate_count=len(rows),candidates=rows[:10],entry=rows[:10],stage_counts=counts[tf],
+                               scan_time_taipei=datetime.fromtimestamp(cutoff/1000,ZoneInfo('Asia/Taipei')).isoformat(),
+                               active_signal_count=active_signal_count,candidate_count=len(rows),candidates=rows[:10],entry=rows[:10],stage_counts=counts[tf],
                                coverage=dict(complete=all(coverage[k]['complete'] for k in (tf,'1d')+(('4h',) if tf=='1h' else ())),
                                              symbols=len(symbols),scanned=sum(not diagnostics[s] for s in symbols),
                                              missing=[s for s in symbols if diagnostics[s]]),special_mode=special)
                     store.put('boards',tf,board)
                 boards={tf:deepcopy(store.get('boards',tf)) for tf in ('1h','4h')}
-                live_symbols={tf:{r['symbol'] for r in board['candidates'] if cutoff-r['key_time']<=86400000} for tf,board in boards.items()}
+                valid_events=store.active_signals(cutoff)
+                live_symbols={tf:{r['symbol'] for r in valid_events if r['timeframe']==tf} for tf in ('1h','4h')}
                 resonance=live_symbols['1h'] & live_symbols['4h']
                 # Presentation label only; stored board and ranking remain fixed.
                 for board in boards.values():
@@ -165,8 +189,9 @@ async def build(api):
                 feed=dict(status='complete',scanner='V5.4_CHATGPT_FEED',strategy=strategy.VERSION,
                           strategy_by_timeframe={tf:strategy.VERSION for tf in boards},parameters=as_parameters(),
                           ranking_policy=strategy.POLICY,ranking_mode='lexicographic',
+                          ranking_policy_by_timeframe={tf:(['synchronized_btc_resilience'] if board['special_mode'] else [])+strategy.POLICY for tf,board in boards.items()},
                           universe=info,universe_total=len(symbols),coverage=coverage,diagnostics=diagnostics,candle_audit=audit,
-                          scan_cutoff_ms=cutoff,scanned=len(symbols),missing=sum(bool(d) for d in diagnostics.values()),
+                          scan_cutoff_ms=cutoff,attempted=len(symbols),scanned=sum(not d for d in diagnostics.values()),missing=sum(bool(d) for d in diagnostics.values()),
                           partial_scan=any(not c['complete'] for c in coverage.values()),
                           generated_at_utc=datetime.now(timezone.utc).isoformat(),elapsed_seconds=round(time.monotonic()-start,2),
                           freshness_version='phase16',clock_source='Binance /fapi/v1/time + monotonic elapsed',
@@ -178,7 +203,7 @@ async def build(api):
                     expected=expected_bar(tf,cutoff)
                     for k,v in expected.items():feed['latest_closed_'+tf+'_'+k]=v
                 store.put('boards','feed',feed)
-                store.db.execute('INSERT INTO audit(cutoff,data) VALUES(?,?)',(cutoff,__import__('json').dumps(dict(due=due,counts=counts,coverage=coverage))))
+                store.db.execute('INSERT INTO audit(cutoff,data) VALUES(?,?)',(cutoff,__import__('json').dumps(dict(due=due,counts=counts,coverage=coverage,feed=feed,ranking_pool=pools))))
             feed=visible(feed,cutoff)
             return dict(status='complete',feed=feed,formal=feed,v52=feed,compact=feed)
     finally:

@@ -169,6 +169,11 @@ def test_runner_keeps_fourhour_board(monkeypatch,tmp_path):
     assert calls==['1h']
     assert second['feed']['4h']['scan_cutoff_ms']==before['scan_cutoff_ms']
     assert second['feed']['4h']['candidates']==before['candidates']
+    state=p.Store(tmp_path/'phase16.sqlite3')
+    import json
+    audit=json.loads(state.db.execute('SELECT data FROM audit ORDER BY id DESC LIMIT 1').fetchone()[0])
+    assert audit['feed']['4h']['scan_cutoff_ms']==before['scan_cutoff_ms']
+    assert 'ranking_pool' in audit and list(audit['ranking_pool'])==['1h']
 
 def test_phase16_summary_contract():
     from scan_summary import compact_scan_feed
@@ -257,3 +262,30 @@ def test_cd_key_expansion_affects_later_structure_quality(tmp_path):
     rows.sort(key=lambda r:r['key_time'])
     assert rows[0]['key']['type']=='C' and rows[0]['consolidation_quality']==2
     assert rows[1]['expansion_cycles']==1 and rows[1]['consolidation_quality']==1
+
+def test_one_asset_per_board_preserves_best_event():
+    from phase16_runner import asset_candidates
+    rows=[dict(symbol='X',signal_id='later',key_time=2,ranking_key=[p.known(2),p.known(None)]),
+          dict(symbol='X',signal_id='earlier',key_time=1,ranking_key=[p.known(2),p.known(None)]),
+          dict(symbol='Y',signal_id='other',key_time=3,ranking_key=[p.known(1),p.known(None)])]
+    selected=asset_candidates(rows)
+    assert len(selected)==2 and selected[0]['signal_id']=='earlier'
+    rows[0]['ranking_key'][0]=p.known(3)
+    assert asset_candidates(rows)[0]['signal_id']=='later' and len(rows)==3
+
+def test_mcp_gateway_accepts_phase16_and_configurable_backend(monkeypatch):
+    pytest.importorskip('mcp.server.mcpserver')
+    import httpx
+    import mcp_server as gateway
+    payload={'strategy':p.VERSION,'status':'complete','feed_ready':True,'partial_scan':True,
+             '1h':{'candidates':[{'symbol':'XUSDT','signal_id':'one','key_time':1}]},
+             '4h':{'candidates':[]},'coverage':{}}
+    def handler(request):
+        assert str(request.url)=='http://local.test/scan/feed'
+        return httpx.Response(200,json=payload)
+    real_client=httpx.Client
+    monkeypatch.setattr(gateway,'SCANNER_BASE_URL','http://local.test')
+    monkeypatch.setattr(gateway.httpx,'Client',lambda **kwargs:real_client(transport=httpx.MockTransport(handler),**kwargs))
+    result=gateway.get_scan_feed()
+    assert result['strategy']==p.VERSION and result['feed_ready'] and result['partial_scan']
+    assert result['1h']['candidates'][0]['signal_id']=='one'

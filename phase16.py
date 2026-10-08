@@ -247,6 +247,10 @@ class Store:
         rows=self.db.execute("SELECT data FROM signals WHERE json_extract(data,'$.symbol')=? AND json_extract(data,'$.timeframe')=? AND json_extract(data,'$.status')='ACTIVE'",(symbol,tf))
         return [json.loads(r[0]) for r in rows]
 
+    def active_signals(self, cutoff):
+        rows=self.db.execute("SELECT data FROM signals WHERE json_extract(data,'$.status')='ACTIVE' AND json_extract(data,'$.current_htf_valid')=1 AND json_extract(data,'$.key_time')>=?",(cutoff-86400000,))
+        return [json.loads(r[0]) for r in rows]
+
     def mark_notified(self, signal_id, time_ms):
         # Call only after a confirmed notification delivery. No automatic sender.
         if self.get('signals', signal_id) is None:
