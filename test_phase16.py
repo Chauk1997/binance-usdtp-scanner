@@ -111,7 +111,7 @@ def test_htf_future():
     f,t=setup();event=int(f['1h'].iloc[58].close_time);f['1d']['ema15']=99.
     d=f['1d'];future=d.iloc[-1].copy();future.close_time+=86400000;future.open_time+=86400000;future.ema15=103.
     f['1d']=pd.concat([d,pd.DataFrame([future])],ignore_index=True)
-    assert not p.htf_at(f,'1h',event)['valid']
+    assert not p.htf_at(f,'1h',event,CFG)['valid']
 
 def test_24_hourly_six_four_hourly(tmp_path):
     s=p.Store(tmp_path/'s.db');count={'1h':0,'4h':0}
@@ -289,3 +289,15 @@ def test_mcp_gateway_accepts_phase16_and_configurable_backend(monkeypatch):
     result=gateway.get_scan_feed()
     assert result['strategy']==p.VERSION and result['feed_ready'] and result['partial_scan']
     assert result['1h']['candidates'][0]['signal_id']=='one'
+
+def test_event_htf_warmup_cannot_use_later_history():
+    end=350*86400000+23*3600000-1
+    daily=htf(end,'1d')
+    # Build200 daily candles ending at the latest closed UTC day.
+    latest=int(daily.close_time.iloc[-1]);daily=frame(200,'1d')
+    daily.close_time=[latest-(199-i)*86400000 for i in range(200)];daily.open_time=daily.close_time-86400000+1
+    daily['ema15']=103.;daily['sma30']=102.;daily['sma45']=101.
+    frames={'1d':daily}
+    assert p.htf_at(frames,'4h',latest)['valid']
+    old=p.htf_at(frames,'4h',latest-86400000)
+    assert not old['valid'] and old['reason']=='missing_htf'

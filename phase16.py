@@ -13,7 +13,7 @@ from scan_freshness import DURATIONS
 from strategy_latest import prepare as validate_history
 
 VERSION = 'SCANNER_V5.4_PHASE16'
-PARAMETER_VERSION = 'phase16-test-defaults-1'
+PARAMETER_VERSION = 'phase16-test-defaults-2'
 MA = ['ema15', 'sma30', 'sma45']
 POLICY = ['ma_escape', 'key_quality', 'resistance', 'range_grade', 'consolidation_quality',
           'volume_contraction', 'duration', 'btc_resilience', 'htf_health', 'auxiliary']
@@ -121,12 +121,12 @@ def confirmed(df, start, i):
                 and (d.d45 <= .5).sum() >= 3 and (d.d45.iloc[-4:] <= .5).sum() >= 1)
 
 
-def htf_at(frames, tf, close_time):
+def htf_at(frames, tf, close_time, cfg=CONFIG):
     evidence = {}
     for interval in (('4h','1d') if tf == '1h' else ('1d',)):
         d = frames.get(interval)
         d = d[d.close_time <= close_time] if d is not None else None
-        if d is None or len(d) < 48 or d[MA+['atr14']].iloc[-1].isna().any():
+        if d is None or len(d) < max(48,cfg.warmup_bars) or d[MA+['atr14']].iloc[-1].isna().any():
             return dict(valid=False, reason='missing_htf', evidence=evidence, health=None)
         r = d.iloc[-1]
         expected = (close_time+1)//DURATIONS[interval]*DURATIONS[interval]-1
@@ -138,6 +138,7 @@ def htf_at(frames, tf, close_time):
         health = (None if None in slope else 2 if slope[0] >= .2 and slope[1] >= .2 and slope[2] > -.2
                   else 0 if slope[0] <= -.2 and slope[1] <= -.2 else 1)
         evidence[interval] = dict(close_time=int(r.close_time), valid=valid, health=health, slopes=slope,
+                                  available_bars=len(d),required_warmup=cfg.warmup_bars,
                                   indicators={k:float(r[k]) for k in MA+['atr14']})
     return dict(valid=all(x['valid'] for x in evidence.values()), evidence=evidence,
                 health=min(x['health'] for x in evidence.values()) if all(x['health'] is not None for x in evidence.values()) else None)
@@ -332,7 +333,7 @@ def process(store, symbol, tf, frames, btc, cutoff, cfg=CONFIG):
                 raise ValueError('missing_k1_history:'+symbol+':'+tf)
             observations=structure.get('observation_count',i-start)
             if key: counts['key']+=1
-            event=htf_at(frames,tf,t) if key else None
+            event=htf_at(frames,tf,t,cfg) if key else None
             if key and not continuation and structure['confirmed_time'] is not None and structure['confirmed_time'] < t:
                 if event['valid']:
                     sid=identity(symbol,tf,structure['k1_time'],t)
@@ -405,7 +406,7 @@ def process(store, symbol, tf, frames, btc, cutoff, cfg=CONFIG):
         if bull:
             state['bull_seen']=True
         state['cursor']=t
-    current=htf_at(frames,tf,int(df.close_time.iloc[-1]))
+    current=htf_at(frames,tf,int(df.close_time.iloc[-1]),cfg)
     for signal in signals:
         if signal['status']!='INVALIDATED':
             signal['status']='ACTIVE' if cutoff-signal['key_time'] <= 86400000 else 'EXPIRED'
