@@ -39,12 +39,12 @@ app = FastAPI(
 
 BINANCE_BASE = "https://fapi.binance.com"
 
-CACHE_DIR = Path("cache")
-CACHE_DIR.mkdir(exist_ok=True)
+CACHE_DIR = Path(os.environ.get("SCANNER_DATA_DIR", "cache"))
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 SYMBOL_CACHE = CACHE_DIR / "symbols.json"
 
-KLINE_LIMIT = 250
+KLINE_LIMIT = 720 if os.environ.get("SCANNER_STRATEGY", "phase16") != "legacy" else 250
 
 # 刻意保守，避免再次觸發 Binance 限制
 MAX_CONCURRENCY = 3
@@ -5075,7 +5075,7 @@ async def update_one_kline_cache(
         path
     )
 
-    if old_bars and confirmed_cache(old_bars, interval):
+    if old_bars and len(old_bars) >= KLINE_LIMIT - 1 and confirmed_cache(old_bars, interval):
         return {'symbol': symbol, 'interval': interval, 'status': 'ok',
                 'skipped_current': True}
 
@@ -5091,7 +5091,7 @@ async def update_one_kline_cache(
             params={
                 "symbol": symbol,
                 "interval": interval,
-                "limit": (KLINE_LIMIT if scan_now_ms() - int(old_bars[-1]["open_time"]) >
+                "limit": (KLINE_LIMIT if len(old_bars) < KLINE_LIMIT - 1 or scan_now_ms() - int(old_bars[-1]["open_time"]) >
                               INCREMENTAL_KLINE_LIMIT * DURATIONS[interval]
                               else INCREMENTAL_KLINE_LIMIT),
             },
@@ -12435,7 +12435,7 @@ async def scan_quality(symbol: str):
 
 # Scheduled and explicit scans share one guarded completed-snapshot worker.
 # A dedicated worker keeps synchronous pandas/file work off the ASGI loop.
-scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json")
+scan_snapshot = ScanSnapshot(CACHE_DIR / "scan_feed_v54.json", strategy_version="SCANNER_V5.4_PHASE16" if os.environ.get("SCANNER_STRATEGY", "phase16") != "legacy" else None)
 
 
 async def _build_complete_snapshot():

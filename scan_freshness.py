@@ -71,6 +71,9 @@ def latest_closed(bars, interval, now_ms=None):
 
 
 def freshness(feed, now_ms=None):
+    if feed and feed.get("strategy") == "SCANNER_V5.4_PHASE16":
+        from phase16_runner import freshness as phase16_freshness
+        return phase16_freshness(feed, live_now_ms() if now_ms is None else now_ms)
     feed = feed or {}
     now = live_now_ms() if now_ms is None else now_ms
     result = {'freshness_timezone': 'Asia/Taipei', 'stale_reasons': [],

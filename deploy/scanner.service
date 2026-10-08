@@ -1,0 +1,24 @@
+[Unit]
+Description=Scanner Phase16 hourly worker and API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scanner
+WorkingDirectory=/opt/scanner
+Environment=SCANNER_STRATEGY=phase16
+Environment=SCANNER_DATA_DIR=/var/lib/scanner
+Environment=SCANNER_SCHEDULER_ENABLED=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/scanner/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=on-failure
+RestartSec=30
+StateDirectory=scanner
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/scanner
+
+[Install]
+WantedBy=multi-user.target

@@ -4,6 +4,13 @@ from scanner_contract import VERSION
 
 
 def compact_scan_feed(feed):
+    if feed.get('strategy') == 'SCANNER_V5.4_PHASE16':
+        result={k:deepcopy(v) for k,v in feed.items() if k not in ('diagnostics','candle_audit','research')}
+        result['output_schema']='scanner-phase16-summary-v1'
+        for tf in ('1h','4h'):
+            result[tf]={k:deepcopy(v) for k,v in feed.get(tf,{}).items() if k!='entry'}
+        result['coverage']={tf:{**{k:v for k,v in c.items() if k!='missing'},'missing_count':len(c.get('missing',[]))} for tf,c in feed.get('coverage',{}).items()}
+        return result
     if feed.get('strategy') != VERSION:
         return {'status':'not_ready','feed_ready':False,'strategy':VERSION,
                 'message':'Waiting for a completed current-strategy snapshot',

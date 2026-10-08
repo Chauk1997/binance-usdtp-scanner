@@ -29,13 +29,33 @@ def select_universe(rows, stock_symbols=()):
     return sorted(set(selected)),excluded,unknown
 
 
+def select_phase16_universe(rows, stock_symbols=()):
+    selected=[];excluded=[];unknown=[]
+    stock_symbols=set(stock_symbols)
+    for r in rows:
+        symbol=r.get('symbol','')
+        if r.get('contractType')!='PERPETUAL' or r.get('status')!='TRADING':continue
+        if r.get('quoteAsset')!='USDT' or r.get('marginAsset')!='USDT':continue
+        tags=' '.join(str(r.get(k,'')) for k in ('underlyingType','underlyingSubType','assetClass')).upper()
+        if symbol in stock_symbols or any(t in tags for t in ('STOCK','EQUITY','EQUITIES','FOREX','FOREIGN_EXCHANGE','FX','COMMODITY','COMMODITIES','TRADFI','METAL')):
+            excluded.append(dict(symbol=symbol,reason='non_crypto_contract'));continue
+        kind=r.get('underlyingType','').upper()
+        if kind in ('COIN','CRYPTO'):selected.append(symbol)
+        elif kind=='INDEX':excluded.append(dict(symbol=symbol,reason='index_contract'))
+        else:unknown.append(symbol)
+    return sorted(set(selected)),excluded,unknown
+
+
 async def universe(api,client):
     result=await api.safe_get(client,api.BINANCE_BASE+'/fapi/v1/exchangeInfo')
     if '_error' in result:
         return None,dict(status='stopped',stage='universe',reason=result['_error'])
     rows=result.get('_data',{}).get('symbols',[])
     overrides=os.environ.get('SCANNER_STOCK_SYMBOLS','').split(',')
-    symbols,excluded,unknown=select_universe(rows,[s.strip() for s in overrides if s.strip()])
+    if os.environ.get('SCANNER_STRATEGY','phase16')=='phase16':
+        symbols,excluded,unknown=select_phase16_universe(rows,[s.strip() for s in overrides if s.strip()])
+    else:
+        symbols,excluded,unknown=select_universe(rows,[s.strip() for s in overrides if s.strip()])
     if unknown or not symbols:
         return None,dict(status='stopped',stage='universe_classification',unknown_symbols=unknown,
                          reason='Review exchange classification / SCANNER_STOCK_SYMBOLS; no partial universe published')
@@ -132,7 +152,7 @@ and technical candidate counts remain complete, independent of this frontier.
     return [row for row in ranked if row['ranking_key']>=boundary]
 
 
-async def build(api):
+async def build_legacy(api):
     started=time.monotonic();cutoff=scan_now_ms()
     headers={}
     if os.environ.get('BINANCE_API_KEY'):
@@ -233,3 +253,10 @@ async def build(api):
         for tf,rows in boards.items():
             feed[tf]=dict(candidate_count=len(pools[tf]),candidates=rows)
         return dict(status='complete',feed=feed,formal=feed,v52=feed,compact=feed)
+
+
+async def build(api):
+    if os.environ.get("SCANNER_STRATEGY", "phase16") == "legacy":
+        return await build_legacy(api)
+    from phase16_runner import build as phase16_build
+    return await phase16_build(api)

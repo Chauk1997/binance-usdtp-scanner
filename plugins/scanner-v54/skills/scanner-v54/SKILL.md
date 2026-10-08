@@ -40,3 +40,8 @@ strategy role and does not require Direct CVD. Report unavailable auxiliary
 fields without discarding technically qualified rows. Include coverage,
 missing, latest closed candles, freshness and feed_ready; never present hidden
 stale/pending rows as current candidates.
+
+
+## Phase16 migration contract (2026-10-08)
+
+When strategy is `SCANNER_V5.4_PHASE16`, report independent 1H and4H Top10 using `signal_id`, `key_time`, immutable eventHTF, currentHTF, A/B/C/D classification and per-factor lexicographic ranking. 4H board retains original `scan_time_utc` between closed4H boundaries. Resonance is a label only. `partial_scan`/coverage UNKNOWN must be shown; never call partial results full-marketTop10. TTL expiry is independent of technical invalidation. BTC specialmode changes current ranking only. EARLY_BREAKOUT research is not a formal signal. Do not force the older confirmed strategy or older five-board algorithm onto Phase16 data. No deployment-success claim from this contract alone.

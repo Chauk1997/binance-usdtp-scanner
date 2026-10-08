@@ -156,7 +156,7 @@ def test_pipeline_retries_delayed_visibility_without_partial_publish(monkeypatch
     monkeypatch.setattr(scanner_latest,'universe',universe)
     monkeypatch.setattr(scanner_latest.asyncio,'sleep',sleep)
     token=f.SCAN_TIME.set(NOW)
-    try:result=asyncio.run(scanner_latest.build(api))
+    try:result=asyncio.run(scanner_latest.build_legacy(api))
     finally:f.SCAN_TIME.reset(token)
     assert attempts==[delayed_tf]*(4 if delayed_forever else 2)
     assert waits==([1,2,4] if delayed_forever else [1])
